@@ -1,0 +1,7 @@
+header = "// SPDX-License-Identifier: MIT OR Apache-2.0"
+sys_includes = []
+no_includes = true
+include_guard = "HYPERDRIVE"
+tab_width = 4
+style = "Type"
+language = "C"

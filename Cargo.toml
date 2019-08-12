@@ -1,0 +1,10 @@
+[package]
+name = "hyperdrive"
+version = "0.0.0"
+
+[lib]
+name = "hyperdrive"
+
+[dependencies]
+hyperdrive_ruby = { path = "hyperdrive_ruby" }
+cargo-c = "0.2.1"
