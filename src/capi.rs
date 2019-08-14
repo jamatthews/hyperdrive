@@ -19,7 +19,7 @@ pub unsafe extern "C" fn hyperdrive_record_instruction(
     match &mut CURRENT_TRACE {
         Some(trace) => {
             if *pc == trace.anchor {
-                //compile trace
+                // TODO compile trace and insert trace instruction
                 CURRENT_TRACE = None;
                 return 1;
             } else {
@@ -43,7 +43,6 @@ pub unsafe extern "C" fn hyperdrive_begin_trace(
     };
     match &mut CURRENT_TRACE {
         Some(_) => panic!("trace already recording"),
-        _ => {},
+        _ => CURRENT_TRACE = Some(trace),
     };
-    CURRENT_TRACE = Some(trace);
 }
