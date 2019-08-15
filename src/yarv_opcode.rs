@@ -4,7 +4,7 @@
 #[allow(non_camel_case_types)]
 #[repr(i32)]
 #[derive(Debug)]
-pub enum OpCode {
+pub enum YarvOpCode {
     nop,
     getlocal,
     setlocal,

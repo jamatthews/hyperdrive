@@ -28,14 +28,15 @@ pub unsafe extern "C" fn hyperdrive_record_instruction(
     _cfp: *const rb_control_frame_t,
     pc: *const VALUE,
 ) {
-    let opcode: i32 = rb_vm_insn_addr2insn(*pc as *const _);
+    let raw_opcode: i32 = rb_vm_insn_addr2insn(*pc as *const _);
+
     match &mut CURRENT_TRACE {
         Some(trace) => {
             if *pc == trace.anchor {
                 CURRENT_TRACE = None;
                 trace_recording = 0;
             } else {
-                trace.add_opcode(std::mem::transmute(opcode));
+                let _opcode: YarvOpCode = std::mem::transmute(opcode);
             }
         },
         None => panic!("No trace started"),
@@ -49,7 +50,7 @@ pub unsafe extern "C" fn hyperdrive_begin_trace(
     pc: *const VALUE,
 ) {
     let trace = Trace {
-        opcodes: vec![],
+        nodes: vec![],
         anchor: *pc,
     };
     match &mut CURRENT_TRACE {
@@ -69,7 +70,7 @@ pub unsafe extern "C" fn hyperdrive_stop_recording() {
 #[no_mangle]
 pub unsafe extern "C" fn hyperdrive_dump_trace() {
     match &mut CURRENT_TRACE {
-        Some(trace) => { println!("trace: {:?}", trace.opcodes) },
+        Some(trace) => { println!("trace: {:?}", trace.nodes) },
         _ => {},
     };
 }

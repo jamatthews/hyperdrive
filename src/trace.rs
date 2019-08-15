@@ -1,12 +1,12 @@
-use opcode::OpCode;
+use ir::*;
 
 pub struct Trace {
-    pub opcodes: Vec<OpCode>,
+    pub nodes: Vec<IrNode>,
     pub anchor: u64,
 }
 
 impl Trace {
-    pub fn add_opcode(&mut self, opcode: OpCode){
-        self.opcodes.push(opcode);
+    pub fn add_node(&mut self, node: IrNode){
+        self.nodes.push(node);
     }
 }

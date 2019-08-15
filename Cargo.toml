@@ -8,3 +8,7 @@ name = "hyperdrive"
 [dependencies]
 hyperdrive_ruby = { path = "hyperdrive_ruby" }
 cargo-c = "0.2.1"
+cranelift = "0.37.0"
+cranelift-codegen = "0.37.0"
+cranelift-module = "0.37.0"
+cranelift-simplejit = "0.37.0"
