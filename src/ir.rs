@@ -1,8 +1,10 @@
+use yarv_opcode::YarvOpCode;
+
 pub struct IrNode {
-    type_: IrType,
-    opcode: OpCode,
-    operand_1: Option<Operand>,
-    operand_2: Option<Operand>
+    pub type_: IrType,
+    pub opcode: OpCode,
+    pub operand_1: Option<usize>,
+    pub operand_2: Option<usize>
 }
 
 pub enum IrType {
@@ -10,11 +12,5 @@ pub enum IrType {
 }
 
 pub enum OpCode {
-    StackPush,
-    Plus
-}
-
-pub enum Operand {
-    Constant,
-    SsaReference,
+    Yarv(YarvOpCode),
 }
