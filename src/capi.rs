@@ -6,19 +6,20 @@ use hyperdrive_ruby::VALUE;
 
 use CURRENT_TRACE;
 use trace::Trace;
+use yarv_opcode::YarvOpCode;
 
 extern "C" {
     #[no_mangle]
     static mut trace_recording: i32;
     #[no_mangle]
-    static mut begin_trace: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
+    static mut trace_dispatch: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
     #[no_mangle]
     static mut record_instruction: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn hyperdrive_init(){
-    begin_trace = hyperdrive_begin_trace;
+    trace_dispatch = hyperdrive_trace_dispatch;
     record_instruction = hyperdrive_record_instruction;
 }
 
@@ -36,7 +37,8 @@ pub unsafe extern "C" fn hyperdrive_record_instruction(
                 CURRENT_TRACE = None;
                 trace_recording = 0;
             } else {
-                let _opcode: YarvOpCode = std::mem::transmute(opcode);
+                let opcode: YarvOpCode = std::mem::transmute(raw_opcode);
+                trace.add_node(opcode);
             }
         },
         None => panic!("No trace started"),
@@ -44,7 +46,7 @@ pub unsafe extern "C" fn hyperdrive_record_instruction(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn hyperdrive_begin_trace(
+pub unsafe extern "C" fn hyperdrive_trace_dispatch(
     _thread: *const rb_thread_t,
     _cfp: *const rb_control_frame_t,
     pc: *const VALUE,
@@ -73,4 +75,12 @@ pub unsafe extern "C" fn hyperdrive_dump_trace() {
         Some(trace) => { println!("trace: {:?}", trace.nodes) },
         _ => {},
     };
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn hyperdrive_recording() -> i64 {
+    match &mut CURRENT_TRACE {
+        Some(trace) => 1,
+        None => 0,
+    }
 }
