@@ -7,8 +7,8 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 
 use ir::*;
-use ir::IrType::*;
-use ir::OpCode::*;
+// use ir::IrType::*;
+// use ir::OpCode::*;
 use yarv_opcode::*;
 
 pub fn compile(trace: Vec<IrNode>) -> fn() {
@@ -16,7 +16,9 @@ pub fn compile(trace: Vec<IrNode>) -> fn() {
     let mut module: Module<SimpleJITBackend> = Module::new(jit_builder);
     let mut codegen_context =  Context::new();
 
-    module.make_signature();
+    let mut sig = module.make_signature();
+
+    //sig.params.push(AbiParam::new(types::I64));
 
     let func_id = module
         .declare_function("test", Linkage::Export, &codegen_context.func.signature)
@@ -52,7 +54,13 @@ fn translate_ir(trace: Vec<IrNode>, builder: &mut FunctionBuilder){
                 let b = values[node.operand_2.expect("missing operand")];
                 values.push(builder.ins().iadd(a, b));
             },
-            _=> {}
+            // OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
+            //
+            // },
+            // OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
+            //
+            // },
+            _=> { println!("couldn't compile opcode: {:?}", node.opcode) }
         };
     };
 
@@ -90,6 +98,12 @@ mod tests {
                 operand_1: Some(0),
                 operand_2: Some(1),
             },
+            IrNode {
+                type_: Value,
+                opcode: Yarv(YarvOpCode::leave),
+                operand_1: Some(2),
+                operand_2: None,
+            }
         ];
         let foo = compile(trace);
         foo();

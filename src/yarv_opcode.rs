@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 #[allow(non_camel_case_types)]
 #[repr(i32)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum YarvOpCode {
     nop,
     getlocal,

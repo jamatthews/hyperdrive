@@ -1,6 +1,6 @@
 use yarv_opcode::YarvOpCode;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IrNode {
     pub type_: IrType,
     pub opcode: OpCode,
@@ -8,12 +8,12 @@ pub struct IrNode {
     pub operand_2: Option<usize>
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum IrType {
     Integer
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(YarvOpCode),
 }

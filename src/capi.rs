@@ -1,12 +1,10 @@
 #[cfg(cargo_c)]
 use hyperdrive_ruby::rb_control_frame_t;
 use hyperdrive_ruby::rb_thread_t;
-use hyperdrive_ruby::rb_vm_insn_addr2insn;
 use hyperdrive_ruby::VALUE;
 
-use CURRENT_TRACE;
-use trace::Trace;
-use yarv_opcode::YarvOpCode;
+use HYPERDRIVE;
+use Mode;
 
 extern "C" {
     #[no_mangle]
@@ -24,43 +22,28 @@ pub unsafe extern "C" fn hyperdrive_init(){
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn hyperdrive_record_instruction(
-    _thread: *const rb_thread_t,
-    _cfp: *const rb_control_frame_t,
-    pc: *const VALUE,
-) {
-    let raw_opcode: i32 = rb_vm_insn_addr2insn(*pc as *const _);
-
-    match &mut CURRENT_TRACE {
-        Some(trace) => {
-            if *pc == trace.anchor {
-                CURRENT_TRACE = None;
-                trace_recording = 0;
-            } else {
-                let opcode: YarvOpCode = std::mem::transmute(raw_opcode);
-                trace.add_node(opcode);
-            }
-        },
-        None => panic!("No trace started"),
-    };
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn hyperdrive_trace_dispatch(
     _thread: *const rb_thread_t,
     _cfp: *const rb_control_frame_t,
     pc: *const VALUE,
 ) {
-    let trace = Trace {
-        nodes: vec![],
-        anchor: *pc,
+    ::trace_dispatch(pc as u64);
+    match &HYPERDRIVE.lock().unwrap().mode {
+        Mode::Recording(_) => { trace_recording = 1 },
+        _ => { trace_recording = 0  },
     };
-    match &mut CURRENT_TRACE {
-        Some(_) => panic!("trace already recording"),
-        _ => {
-            trace_recording = 1;
-            CURRENT_TRACE = Some(trace);
-        },
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn hyperdrive_record_instruction(
+    _thread: *const rb_thread_t,
+    _cfp: *const rb_control_frame_t,
+    pc: *const VALUE,
+) {
+    ::trace_record_instruction(pc);
+    match &HYPERDRIVE.lock().unwrap().mode {
+        Mode::Recording(_) => { trace_recording = 1 },
+        _ => { trace_recording = 0  },
     };
 }
 
@@ -70,17 +53,14 @@ pub unsafe extern "C" fn hyperdrive_stop_recording() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn hyperdrive_dump_trace() {
-    match &mut CURRENT_TRACE {
-        Some(trace) => { println!("trace: {:?}", trace.nodes) },
-        _ => {},
-    };
+pub extern "C" fn hyperdrive_recording() -> i64 {
+    match &HYPERDRIVE.lock().unwrap().mode {
+        Mode::Recording(_) => 1,
+        _ => 0,
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn hyperdrive_recording() -> i64 {
-    match &mut CURRENT_TRACE {
-        Some(trace) => 1,
-        None => 0,
-    }
+pub extern "C" fn hyperdrive_trace_count() -> usize {
+    HYPERDRIVE.lock().unwrap().trace_heads.keys().len()
 }
