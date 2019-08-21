@@ -7,7 +7,7 @@ use ir::*;
 pub struct Trace {
     pub nodes: Vec<IrNode>,
     pub anchor: u64,
-    pub compiled_code: Option<fn()>,
+    pub compiled_code: Option<fn() -> i64>,
 }
 
 impl Trace {

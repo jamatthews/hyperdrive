@@ -44,16 +44,19 @@ pub enum Mode {
     Executing,
 }
 
+// trace dispatch and either enter a trace or start recording a trace
 fn trace_dispatch(pc: u64) {
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Normal => {
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 existing_trace.compiled_code.unwrap()();
+                println!("called the compiled code");
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
+                    println!("starting recording");
                     let new_trace = Trace {
                         anchor: pc,
                         nodes: vec![],
@@ -63,26 +66,25 @@ fn trace_dispatch(pc: u64) {
                 }
             }
         },
-        Mode::Recording(trace) => {
-            if pc == trace.anchor {
-                let mut trace = trace.clone();
-                //trace.compile();
-                hyperdrive.trace_heads.insert(trace.anchor, trace);
-                hyperdrive.mode = Mode::Normal;
-            }
-        },
         _ => {},
     }
 }
 
+// recording may terminate, triggering compilation
 fn trace_record_instruction(pc: *const VALUE){
     let raw_opcode: i32 = unsafe { rb_vm_insn_addr2insn(*pc as *const _) };
     let parsed_opcode: YarvOpCode = unsafe { std::mem::transmute(raw_opcode) };
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
+
     match &mut hyperdrive.mode {
-        Mode::Recording(trace) => {
-            trace.add_node(parsed_opcode);
+        Mode::Recording(trace) if pc as u64 == trace.anchor => {
+            println!("trace complete");
+            let mut trace = trace.clone();
+            trace.compile();
+            hyperdrive.trace_heads.insert(trace.anchor, trace);
+            hyperdrive.mode = Mode::Normal;
         },
+        Mode::Recording(trace) => trace.add_node(parsed_opcode),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }
