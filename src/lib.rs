@@ -9,9 +9,9 @@ extern crate hyperdrive_ruby;
 
 #[cfg(cargo_c)]
 mod capi;
-mod compiler;
 mod ir;
 mod trace;
+mod trace_compiler;
 mod yarv_opcode;
 
 use yarv_opcode::YarvOpCode;
