@@ -6,6 +6,19 @@ use cranelift_simplejit::*;
 use ir::*;
 use yarv_opcode::*;
 
+macro_rules! value_2_i64 {
+    ($x:ident, $builder:ident) => {{
+        $builder.ins().ushr_imm($x, 1)
+    }}
+}
+
+macro_rules! i64_2_value {
+    ($x:ident, $builder:ident) => {{
+        let value = $builder.ins().ishl_imm($x, 1);
+        $builder.ins().iadd_imm(value, 1)
+    }}
+}
+
 pub struct TraceCompiler<'a> {
     module: &'a mut Module<SimpleJITBackend>,
     builder: FunctionBuilder<'a>,
@@ -21,12 +34,11 @@ impl <'a> TraceCompiler<'a> {
     }
 
     pub fn compile(&mut self, trace: Vec<IrNode>){
-        let slot = self.builder.create_stack_slot(StackSlotData{kind: StackSlotKind::ExplicitSlot, size: 8, offset: None});
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
-        let result = self.builder.ins().iconst(I64, 0 as i64);
-        self.builder.ins().stack_store(result, slot, 0);
+        self.builder.append_ebb_params_for_function_params(entry_block);
+        let ep = self.builder.ebb_params(entry_block)[0];
         self.builder.ins().jump(loop_block, &[]);
         self.builder.switch_to_block(loop_block);
 
@@ -42,13 +54,19 @@ impl <'a> TraceCompiler<'a> {
                     stack.push(self.builder.ins().iadd(a, b));
                 },
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
-                    stack.push( self.builder.ins().stack_load(I64, slot, 0) );
+                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, -24);
+                    let mut builder = &mut self.builder;
+                    let unboxed = value_2_i64!(boxed, builder);
+                    stack.push(unboxed);
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
-                    self.builder.ins().stack_store(stack.pop().unwrap(), slot, 0);
+                    let unboxed = stack.pop().unwrap();
+                    let builder = &mut self.builder;
+                    let boxed = i64_2_value!(unboxed, builder);
+                    self.builder.ins().store(MemFlags::new(), boxed, ep, -24);
                 },
                 OpCode::Yarv(YarvOpCode::putobject) => {
-                    stack.push(self.builder.ins().iconst(I64, 1002 as i64));
+                    stack.push(self.builder.ins().iconst(I64, 2000 as i64));
                 },
                 OpCode::Yarv(YarvOpCode::opt_lt) => {
                     let b = stack.pop().unwrap();
@@ -63,8 +81,7 @@ impl <'a> TraceCompiler<'a> {
                 _=> { }
             };
         };
-        let val = self.builder.ins().stack_load(I64, slot, 0);
-        self.builder.ins().return_(&[val]);
+        self.builder.ins().return_(&[]);
     }
 
     pub fn preview(&mut self) -> Result<String, String> {

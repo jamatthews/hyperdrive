@@ -23,11 +23,11 @@ pub unsafe extern "C" fn hyperdrive_init(){
 
 #[no_mangle]
 pub unsafe extern "C" fn hyperdrive_trace_dispatch(
-    _thread: *const rb_thread_t,
-    _cfp: *const rb_control_frame_t,
+    thread: *const rb_thread_t,
+    cfp: *const rb_control_frame_t,
     pc: *const VALUE,
 ) {
-    ::trace_dispatch(pc as u64);
+    ::trace_dispatch(thread, *cfp, pc as u64);
     match &HYPERDRIVE.lock().unwrap().mode {
         Mode::Recording(_) => { trace_recording = 1 },
         _ => { trace_recording = 0  },

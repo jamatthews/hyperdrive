@@ -2,6 +2,7 @@ use yarv_opcode::YarvOpCode;
 
 #[derive(Clone, Debug)]
 pub struct IrNode {
+    pub pc: u64,
     pub type_: IrType,
     pub opcode: OpCode,
     pub operand_1: Option<usize>,

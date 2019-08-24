@@ -13,7 +13,11 @@ mod ir;
 mod trace;
 mod trace_compiler;
 mod yarv_opcode;
+mod vm_thread;
 
+use hyperdrive_ruby::ruby_special_consts;
+use hyperdrive_ruby::rb_thread_t;
+use hyperdrive_ruby::rb_control_frame_t;
 use yarv_opcode::YarvOpCode;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -45,18 +49,20 @@ pub enum Mode {
 }
 
 // trace dispatch and either enter a trace or start recording a trace
-fn trace_dispatch(pc: u64) {
+fn trace_dispatch(thread: *const rb_thread_t, mut cfp: rb_control_frame_t, pc: u64) {
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Normal => {
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
-                existing_trace.compiled_code.unwrap()();
-                println!("called the compiled code");
+                let target_pc = existing_trace.nodes.last().unwrap().pc;
+                let ep = unsafe { (*(*(*thread).ec).cfp).ep };
+                existing_trace.compiled_code.unwrap()(ep);
+
+                unsafe { (*(*(*thread).ec).cfp).pc = (target_pc as u64 + 8) as *mut u64 };
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
-                    println!("starting recording");
                     let new_trace = Trace {
                         anchor: pc,
                         nodes: vec![],
@@ -78,13 +84,12 @@ fn trace_record_instruction(pc: *const VALUE){
 
     match &mut hyperdrive.mode {
         Mode::Recording(trace) if pc as u64 == trace.anchor => {
-            println!("trace complete");
             let mut trace = trace.clone();
             trace.compile();
             hyperdrive.trace_heads.insert(trace.anchor, trace);
             hyperdrive.mode = Mode::Normal;
         },
-        Mode::Recording(trace) => trace.add_node(parsed_opcode),
+        Mode::Recording(trace) => trace.add_node(pc as u64, parsed_opcode),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }

@@ -1,6 +1,8 @@
+use hyperdrive_ruby::VALUE;
 use std::mem::transmute;
 use cranelift::prelude::*;
 use cranelift_codegen::Context;
+use cranelift_codegen::isa::CallConv;
 use cranelift_module::*;
 use cranelift_simplejit::*;
 
@@ -13,13 +15,14 @@ use ir::*;
 pub struct Trace {
     pub nodes: Vec<IrNode>,
     pub anchor: u64,
-    pub compiled_code: Option<fn() -> i64>,
+    pub compiled_code: Option<fn(*const VALUE) -> i64>,
 }
 
 impl Trace {
-    pub fn add_node(&mut self, opcode: YarvOpCode){
+    pub fn add_node(&mut self, pc: u64, opcode: YarvOpCode){
         let node = IrNode {
             type_: Integer,
+            pc: pc,
             opcode: OpCode::Yarv(opcode),
             operand_1: None,
             operand_2: None,
@@ -29,7 +32,8 @@ impl Trace {
 
     pub fn compile(&mut self){
         let mut codegen_context = Context::new();
-        codegen_context.func.signature.returns.push(AbiParam::new(types::I64));
+        codegen_context.func.signature.call_conv = CallConv::SystemV;
+        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         let mut module = Module::new(SimpleJITBuilder::new(cranelift_module::default_libcall_names()));
         let func_id = module
             .declare_function("test", Linkage::Export, &codegen_context.func.signature)
@@ -48,12 +52,13 @@ impl Trace {
         module.finalize_definitions();
             let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code = Some(unsafe { transmute::<_, fn() -> i64>(compiled_code) });
+        self.compiled_code = Some(unsafe { transmute::<_, fn(*const VALUE) -> i64>(compiled_code) });
     }
 
     pub fn preview(&mut self) -> String {
         let mut codegen_context = Context::new();
-        codegen_context.func.signature.returns.push(AbiParam::new(types::I64));
+        codegen_context.func.signature.call_conv = CallConv::SystemV;
+        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         let mut module = Module::new(SimpleJITBuilder::new(cranelift_module::default_libcall_names()));
         let _func_id = module
             .declare_function("test", Linkage::Export, &codegen_context.func.signature)
@@ -77,48 +82,56 @@ mod tests {
     fn it_compiles_simple() {
         let nodes = vec![
             IrNode {
+                pc: 0,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::getlocal_WC_0),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 1,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::putobject_INT2FIX_1_),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 2,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::opt_plus),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 3,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::setlocal_WC_0),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 4,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::getlocal_WC_0),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 5,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::putobject),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 6,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::opt_lt),
                 operand_1: None,
                 operand_2: None,
             },
             IrNode {
+                pc: 7,
                 type_: Integer,
                 opcode: Yarv(YarvOpCode::branchif),
                 operand_1: None,
@@ -131,7 +144,5 @@ mod tests {
             compiled_code: None,
         };
         trace.compile();
-        let result = trace.compiled_code.unwrap()();
-        assert_eq!(1002, result);
     }
 }
