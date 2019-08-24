@@ -3,6 +3,8 @@ use hyperdrive_ruby::rb_control_frame_t;
 use hyperdrive_ruby::rb_thread_t;
 use hyperdrive_ruby::VALUE;
 
+use vm_thread::VmThread;
+
 use HYPERDRIVE;
 use Mode;
 
@@ -24,10 +26,10 @@ pub unsafe extern "C" fn hyperdrive_init(){
 #[no_mangle]
 pub unsafe extern "C" fn hyperdrive_trace_dispatch(
     thread: *const rb_thread_t,
-    cfp: *const rb_control_frame_t,
-    pc: *const VALUE,
+    _cfp: *const rb_control_frame_t,
+    _pc: *const VALUE,
 ) {
-    ::trace_dispatch(thread, *cfp, pc as u64);
+    ::trace_dispatch(VmThread::new(thread));
     match &HYPERDRIVE.lock().unwrap().mode {
         Mode::Recording(_) => { trace_recording = 1 },
         _ => { trace_recording = 0  },

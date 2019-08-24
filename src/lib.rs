@@ -15,14 +15,10 @@ mod trace_compiler;
 mod yarv_opcode;
 mod vm_thread;
 
-use hyperdrive_ruby::ruby_special_consts;
-use hyperdrive_ruby::rb_thread_t;
-use hyperdrive_ruby::rb_control_frame_t;
-use yarv_opcode::YarvOpCode;
+use vm_thread::VmThread;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use hyperdrive_ruby::rb_vm_insn_addr2insn;
 use hyperdrive_ruby::VALUE;
 
 #[cfg(cargo_c)]
@@ -35,7 +31,7 @@ lazy_static! {
     );
 }
 
-struct Hyperdrive{
+struct Hyperdrive {
     pub mode: Mode,
     pub counters: HashMap<u64,u64>,
     pub trace_heads: HashMap<u64,Trace>,
@@ -49,16 +45,15 @@ pub enum Mode {
 }
 
 // trace dispatch and either enter a trace or start recording a trace
-fn trace_dispatch(thread: *const rb_thread_t, mut cfp: rb_control_frame_t, pc: u64) {
+fn trace_dispatch(thread: VmThread) {
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Normal => {
+            let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
-                let target_pc = existing_trace.nodes.last().unwrap().pc;
-                let ep = unsafe { (*(*(*thread).ec).cfp).ep };
-                existing_trace.compiled_code.unwrap()(ep);
-
-                unsafe { (*(*(*thread).ec).cfp).pc = (target_pc as u64 + 8) as *mut u64 };
+                let target_pc = (existing_trace.nodes.last().unwrap().pc + 8) as *const u64;
+                existing_trace.compiled_code.unwrap()(thread.get_ep());
+                thread.set_pc(target_pc);
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
@@ -78,8 +73,6 @@ fn trace_dispatch(thread: *const rb_thread_t, mut cfp: rb_control_frame_t, pc: u
 
 // recording may terminate, triggering compilation
 fn trace_record_instruction(pc: *const VALUE){
-    let raw_opcode: i32 = unsafe { rb_vm_insn_addr2insn(*pc as *const _) };
-    let parsed_opcode: YarvOpCode = unsafe { std::mem::transmute(raw_opcode) };
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
 
     match &mut hyperdrive.mode {
@@ -89,7 +82,7 @@ fn trace_record_instruction(pc: *const VALUE){
             hyperdrive.trace_heads.insert(trace.anchor, trace);
             hyperdrive.mode = Mode::Normal;
         },
-        Mode::Recording(trace) => trace.add_node(pc as u64, parsed_opcode),
+        Mode::Recording(trace) => trace.add_node(pc as u64, pc.into()),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }
