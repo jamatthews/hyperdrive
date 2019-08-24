@@ -15,7 +15,7 @@ mod trace_compiler;
 mod yarv_opcode;
 mod vm_thread;
 
-use vm_thread::VmThread;
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -24,6 +24,8 @@ use hyperdrive_ruby::VALUE;
 #[cfg(cargo_c)]
 pub use capi::*;
 pub use trace::Trace;
+use vm_thread::VmThread;
+use ir::OpCode;
 
 lazy_static! {
     static ref HYPERDRIVE: Mutex<Hyperdrive> = Mutex::new(
@@ -51,7 +53,10 @@ fn trace_dispatch(thread: VmThread) {
         Mode::Normal => {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
-                let target_pc = (existing_trace.nodes.last().unwrap().pc + 8) as *const u64;
+                let target_pc = match existing_trace.nodes.last().unwrap().opcode {
+                    OpCode::Snapshot(pc) => pc as *const VALUE,
+                    _ => panic!("tried to exit without a snapshot"),
+                };
                 existing_trace.compiled_code.unwrap()(thread.get_ep());
                 thread.set_pc(target_pc);
             } else {
@@ -69,15 +74,15 @@ fn trace_dispatch(thread: VmThread) {
 // recording may terminate, triggering compilation
 fn trace_record_instruction(pc: *const VALUE){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
-
     match &mut hyperdrive.mode {
         Mode::Recording(trace) if pc as u64 == trace.start => {
+            trace.complete(pc as u64);
             let mut trace = trace.clone();
             trace.compile();
             hyperdrive.trace_heads.insert(trace.start, trace);
             hyperdrive.mode = Mode::Normal;
         },
-        Mode::Recording(trace) => trace.add_node(pc as u64, pc.into()),
+        Mode::Recording(trace) => trace.add_node(pc.into()),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }

@@ -2,7 +2,6 @@ use yarv_opcode::YarvOpCode;
 
 #[derive(Clone, Debug)]
 pub struct IrNode {
-    pub pc: u64,
     pub type_: IrType,
     pub opcode: OpCode,
     pub operand_1: Option<usize>,
@@ -11,16 +10,12 @@ pub struct IrNode {
 
 #[derive(Clone, Debug)]
 pub enum IrType {
-    Integer
+    Integer,
+    Snapshot
 }
 
 #[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(YarvOpCode),
-    Snapshot(Snapshot),
-}
-
-#[derive(Clone, Debug)]
-pub struct Snapshot {
-    pc: u64,
+    Snapshot(u64),
 }

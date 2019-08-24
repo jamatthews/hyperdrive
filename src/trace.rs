@@ -27,10 +27,21 @@ impl Trace {
         }
     }
 
-    pub fn add_node(&mut self, pc: u64, opcode: YarvOpCode){
+    pub fn complete(&mut self, pc: u64) {
+        self.nodes.push(
+            IrNode {
+                type_: IrType::Snapshot,
+                opcode: OpCode::Snapshot(pc + 8),
+                operand_1: None,
+                operand_2: None,
+            }
+        );
+    }
+
+
+    pub fn add_node(&mut self, opcode: YarvOpCode){
         let node = IrNode {
             type_: Integer,
-            pc: pc,
             opcode: OpCode::Yarv(opcode),
             operand_1: None,
             operand_2: None,
