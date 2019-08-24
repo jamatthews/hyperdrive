@@ -1,17 +1,19 @@
 use yarv_opcode::YarvOpCode;
+use hyperdrive_ruby::VALUE;
 
 #[derive(Clone, Debug)]
 pub struct IrNode {
     pub type_: IrType,
     pub opcode: OpCode,
-    pub operand_1: Option<usize>,
-    pub operand_2: Option<usize>
+    pub operands: Vec<VALUE>,
 }
 
 #[derive(Clone, Debug)]
 pub enum IrType {
     Integer,
-    Snapshot
+    Boolean,
+    None,
+    Snapshot,
 }
 
 #[derive(Clone, Debug)]

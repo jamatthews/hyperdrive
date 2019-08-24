@@ -54,19 +54,22 @@ impl <'a> TraceCompiler<'a> {
                     stack.push(self.builder.ins().iadd(a, b));
                 },
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
-                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, -24);
+                    let offset = -8 * node.operands[0] as i32;
+                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                     let mut builder = &mut self.builder;
                     let unboxed = value_2_i64!(boxed, builder);
                     stack.push(unboxed);
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
+                    let offset = -8 * node.operands[0] as i32;
                     let unboxed = stack.pop().unwrap();
                     let builder = &mut self.builder;
                     let boxed = i64_2_value!(unboxed, builder);
-                    self.builder.ins().store(MemFlags::new(), boxed, ep, -24);
+                    self.builder.ins().store(MemFlags::new(), boxed, ep,  offset);
                 },
                 OpCode::Yarv(YarvOpCode::putobject) => {
-                    stack.push(self.builder.ins().iconst(I64, 2000 as i64));
+                    let unboxed = node.operands[0] >> 1;
+                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
                 OpCode::Yarv(YarvOpCode::opt_lt) => {
                     let b = stack.pop().unwrap();

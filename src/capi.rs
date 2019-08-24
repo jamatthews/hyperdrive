@@ -38,11 +38,11 @@ pub unsafe extern "C" fn hyperdrive_trace_dispatch(
 
 #[no_mangle]
 pub unsafe extern "C" fn hyperdrive_record_instruction(
-    _thread: *const rb_thread_t,
+    thread: *const rb_thread_t,
     _cfp: *const rb_control_frame_t,
-    pc: *const VALUE,
+    _pc: *const VALUE,
 ) {
-    ::trace_record_instruction(pc);
+    ::trace_record_instruction(VmThread::new(thread));
     match &HYPERDRIVE.lock().unwrap().mode {
         Mode::Recording(_) => { trace_recording = 1 },
         _ => { trace_recording = 0  },

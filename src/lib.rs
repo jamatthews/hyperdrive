@@ -9,9 +9,11 @@ extern crate hyperdrive_ruby;
 
 #[cfg(cargo_c)]
 mod capi;
+mod instruction_recorder;
 mod ir;
 mod trace;
 mod trace_compiler;
+mod yarv_instruction;
 mod yarv_opcode;
 mod vm_thread;
 
@@ -72,17 +74,17 @@ fn trace_dispatch(thread: VmThread) {
 }
 
 // recording may terminate, triggering compilation
-fn trace_record_instruction(pc: *const VALUE){
+fn trace_record_instruction(thread: VmThread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
-        Mode::Recording(trace) if pc as u64 == trace.start => {
-            trace.complete(pc as u64);
+        Mode::Recording(trace) if thread.get_pc() as u64 == trace.start => {
+            trace.complete();
             let mut trace = trace.clone();
             trace.compile();
             hyperdrive.trace_heads.insert(trace.start, trace);
             hyperdrive.mode = Mode::Normal;
         },
-        Mode::Recording(trace) => trace.add_node(pc.into()),
+        Mode::Recording(trace) => trace.record_instruction(thread),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }

@@ -1,3 +1,5 @@
+use ir::*;
+use vm_thread::VmThread;
 use hyperdrive_ruby::VALUE;
 use std::mem::transmute;
 use cranelift::prelude::*;
@@ -7,14 +9,16 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 
 use trace_compiler::TraceCompiler;
-use ir::IrType::Integer;
-use yarv_opcode::YarvOpCode;
-use ir::*;
+
+use instruction_recorder::record_instruction;
+
+pub type IrNodes = Vec<IrNode>;
 
 #[derive(Clone, Debug)]
 pub struct Trace {
-    pub nodes: Vec<IrNode>,
+    pub nodes: IrNodes,
     pub start: u64,
+    pub exit: u64,
     pub compiled_code: Option<fn(*const VALUE) -> i64>,
 }
 
@@ -22,31 +26,25 @@ impl Trace {
     pub fn new(pc: u64) -> Self {
         Trace {
             start: pc,
+            exit: pc,
             nodes: vec![],
             compiled_code: None,
         }
     }
 
-    pub fn complete(&mut self, pc: u64) {
+    pub fn complete(&mut self) {
         self.nodes.push(
             IrNode {
                 type_: IrType::Snapshot,
-                opcode: OpCode::Snapshot(pc + 8),
-                operand_1: None,
-                operand_2: None,
+                opcode: OpCode::Snapshot(self.exit + 8),
+                operands: vec![],
             }
         );
     }
 
-
-    pub fn add_node(&mut self, opcode: YarvOpCode){
-        let node = IrNode {
-            type_: Integer,
-            opcode: OpCode::Yarv(opcode),
-            operand_1: None,
-            operand_2: None,
-        };
-        self.nodes.push(node);
+    pub fn record_instruction(&mut self, thread: VmThread) {
+        self.exit = thread.get_pc() as u64;
+        record_instruction(&mut self.nodes, thread);
     }
 
     pub fn compile(&mut self){
@@ -88,80 +86,5 @@ impl Trace {
         let mut compiler = TraceCompiler::new(&mut module, builder);
         compiler.compile(self.nodes.clone());
         compiler.preview().unwrap()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ir::IrType::*;
-    use ir::OpCode::*;
-
-    #[test]
-    fn it_compiles_simple() {
-        let nodes = vec![
-            IrNode {
-                pc: 0,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::getlocal_WC_0),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 1,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::putobject_INT2FIX_1_),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 2,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::opt_plus),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 3,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::setlocal_WC_0),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 4,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::getlocal_WC_0),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 5,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::putobject),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 6,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::opt_lt),
-                operand_1: None,
-                operand_2: None,
-            },
-            IrNode {
-                pc: 7,
-                type_: Integer,
-                opcode: Yarv(YarvOpCode::branchif),
-                operand_1: None,
-                operand_2: None,
-            },
-        ];
-        let mut trace = Trace {
-            nodes: nodes,
-            anchor: 0,
-            compiled_code: None,
-        };
-        trace.compile();
     }
 }
