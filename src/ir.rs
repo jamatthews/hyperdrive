@@ -17,4 +17,10 @@ pub enum IrType {
 #[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(YarvOpCode),
+    Snapshot(Snapshot),
+}
+
+#[derive(Clone, Debug)]
+pub struct Snapshot {
+    pc: u64,
 }

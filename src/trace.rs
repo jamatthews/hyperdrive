@@ -14,11 +14,19 @@ use ir::*;
 #[derive(Clone, Debug)]
 pub struct Trace {
     pub nodes: Vec<IrNode>,
-    pub anchor: u64,
+    pub start: u64,
     pub compiled_code: Option<fn(*const VALUE) -> i64>,
 }
 
 impl Trace {
+    pub fn new(pc: u64) -> Self {
+        Trace {
+            start: pc,
+            nodes: vec![],
+            compiled_code: None,
+        }
+    }
+
     pub fn add_node(&mut self, pc: u64, opcode: YarvOpCode){
         let node = IrNode {
             type_: Integer,

@@ -58,12 +58,7 @@ fn trace_dispatch(thread: VmThread) {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
-                    let new_trace = Trace {
-                        anchor: pc,
-                        nodes: vec![],
-                        compiled_code: None,
-                    };
-                    hyperdrive.mode = Mode::Recording(new_trace);
+                    hyperdrive.mode = Mode::Recording(Trace::new(pc));
                 }
             }
         },
@@ -76,10 +71,10 @@ fn trace_record_instruction(pc: *const VALUE){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
 
     match &mut hyperdrive.mode {
-        Mode::Recording(trace) if pc as u64 == trace.anchor => {
+        Mode::Recording(trace) if pc as u64 == trace.start => {
             let mut trace = trace.clone();
             trace.compile();
-            hyperdrive.trace_heads.insert(trace.anchor, trace);
+            hyperdrive.trace_heads.insert(trace.start, trace);
             hyperdrive.mode = Mode::Normal;
         },
         Mode::Recording(trace) => trace.add_node(pc as u64, pc.into()),
