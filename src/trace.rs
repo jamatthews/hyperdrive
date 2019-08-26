@@ -9,6 +9,7 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 
 use trace_compiler::TraceCompiler;
+use cranelift_codegen::ir::types::I64;
 
 use instruction_recorder::record_instruction;
 
@@ -52,6 +53,14 @@ impl Trace {
         codegen_context.func.signature.call_conv = CallConv::SystemV;
         codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         let mut module = Module::new(SimpleJITBuilder::new(cranelift_module::default_libcall_names()));
+
+        let sig = Signature {
+            params: vec![AbiParam::new(I64)],
+            returns: vec![AbiParam::new(I64)],
+            call_conv: CallConv::SystemV,
+        };
+        module.declare_function("_rb_ary_resurrect", Linkage::Local, &sig).unwrap();
+
         let func_id = module
             .declare_function("test", Linkage::Export, &codegen_context.func.signature)
             .expect("CraneLift error declaring function");

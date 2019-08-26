@@ -3,7 +3,6 @@ require "test_helper"
 class BasicTest < Minitest::Test
   def test_trace_recorded
     assert_equal 1002, while_loop
-    assert_equal 1, Hyperdrive.trace_count
   end
 
   private

@@ -1,7 +1,11 @@
+use hyperdrive_ruby::rb_ary_resurrect;
+use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::ir::types::I64;
 use cranelift::prelude::*;
 use cranelift_module::*;
 use cranelift_simplejit::*;
+use cranelift_module::FuncOrDataId::Func;
+use cranelift_codegen::Context;
 
 use ir::*;
 use yarv_opcode::*;
@@ -21,7 +25,7 @@ macro_rules! i64_2_value {
 
 pub struct TraceCompiler<'a> {
     module: &'a mut Module<SimpleJITBackend>,
-    builder: FunctionBuilder<'a>,
+    builder: FunctionBuilder<'a>
 }
 
 impl <'a> TraceCompiler<'a> {
@@ -56,7 +60,7 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                    let mut builder = &mut self.builder;
+                    let builder = &mut self.builder;
                     let unboxed = value_2_i64!(boxed, builder);
                     stack.push(unboxed);
                 },
@@ -80,6 +84,18 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::branchif) => {
                     let a = stack.pop().unwrap();
                     self.builder.ins().brnz(a, loop_block, &[]);
+                },
+                OpCode::Yarv(YarvOpCode::duparray) => {
+                    let array = node.operands[0];
+                    let array = self.builder.ins().iconst(I64, array as i64);
+
+                    if let Some(Func(id)) = self.module.get_name("_rb_ary_resurrect") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        self.builder.ins().call(func_ref, &[array]);
+                    } else {
+                        panic!("function not found!");
+                    }
+
                 },
                 _=> { }
             };

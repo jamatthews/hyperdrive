@@ -76,6 +76,16 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
                 }
             );
         },
+        YarvOpCode::duparray => {
+            let array = instruction.get_operand(0);
+            nodes.push(
+                IrNode {
+                    type_: IrType::None,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![array],
+                }
+            );
+        },
         _ => panic!("NYI: {:?}", opcode),
     }
 }
