@@ -53,45 +53,66 @@ impl <'a> TraceCompiler<'a> {
                     stack.push(self.builder.ins().iconst(I64, 1 as i64));
                 },
                 OpCode::Yarv(YarvOpCode::opt_plus) => {
-                    let b = stack.pop().unwrap();
-                    let a = stack.pop().unwrap();
+                    let b = stack.pop().expect("stack underflow in opt_plus");
+                    let a = stack.pop().expect("stack underflow in opt_plus");
                     stack.push(self.builder.ins().iadd(a, b));
                 },
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
+                    match node.type_ {
+                        IrType::Integer => {
+                            let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
+                            let builder = &mut self.builder;
+                            let unboxed = value_2_i64!(boxed, builder);
+                            stack.push(unboxed);
+                        },
+                        IrType::Array => {
+                            let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
+                            stack.push(boxed);
+                        },
+                        _ => panic!("unexpect type {:?} in getlocal", node.type_),
+                    }
                     let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                    let builder = &mut self.builder;
-                    let unboxed = value_2_i64!(boxed, builder);
-                    stack.push(unboxed);
+
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
-                    let unboxed = stack.pop().unwrap();
-                    let builder = &mut self.builder;
-                    let boxed = i64_2_value!(unboxed, builder);
-                    self.builder.ins().store(MemFlags::new(), boxed, ep,  offset);
+                    match node.type_ {
+                        IrType::Integer => {
+                            let unboxed = stack.pop().expect("stack underflow in setlocal");
+                            let builder = &mut self.builder;
+                            let rvalue = i64_2_value!(unboxed, builder);
+                            self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
+                        },
+                        IrType::Array => {
+                            let rvalue = stack.pop().expect("stack underflow in setlocal");
+                            self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
+                        },
+                        _ => panic!("unexpect type {:?} in setlocal", node.type_),
+                    };
                 },
                 OpCode::Yarv(YarvOpCode::putobject) => {
                     let unboxed = node.operands[0] >> 1;
                     stack.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
                 OpCode::Yarv(YarvOpCode::opt_lt) => {
-                    let b = stack.pop().unwrap();
-                    let a = stack.pop().unwrap();
+                    let b = stack.pop().expect("stack underflow in opt_lt");
+                    let a = stack.pop().expect("stack underflow in opt_lt");
                     let result = self.builder.ins().icmp(IntCC::SignedLessThan, a, b);
                     stack.push(result);
                 },
                 OpCode::Yarv(YarvOpCode::branchif) => {
-                    let a = stack.pop().unwrap();
+                    let a = stack.pop().expect("stack underflow in branchif");
                     self.builder.ins().brnz(a, loop_block, &[]);
                 },
                 OpCode::Yarv(YarvOpCode::duparray) => {
                     let array = node.operands[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
-
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_resurrect") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        self.builder.ins().call(func_ref, &[array]);
+                        let call = self.builder.ins().call(func_ref, &[array]);
+                        let result = self.builder.inst_results(call)[0];
+                        stack.push(result);
                     } else {
                         panic!("function not found!");
                     }

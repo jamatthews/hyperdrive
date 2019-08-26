@@ -13,6 +13,7 @@ class BasicTest < Minitest::Test
     z = [1]
     while i < 1002
       i += 1
+      z = [1]
     end
     z
   end

@@ -41,7 +41,7 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
             let offset = instruction.get_operand(0);
             nodes.push(
                 IrNode {
-                    type_: IrType::None,
+                    type_: nodes.last().expect("setlocal can't be first insn").type_.clone(),
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![offset],
                 }
@@ -80,7 +80,7 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
             let array = instruction.get_operand(0);
             nodes.push(
                 IrNode {
-                    type_: IrType::None,
+                    type_: IrType::Array,
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![array],
                 }

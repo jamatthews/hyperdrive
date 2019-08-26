@@ -14,6 +14,7 @@ pub enum IrType {
     Boolean,
     None,
     Snapshot,
+    Array
 }
 
 #[derive(Clone, Debug)]
