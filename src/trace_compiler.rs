@@ -1,14 +1,15 @@
-use hyperdrive_ruby::rb_ary_resurrect;
+use hyperdrive_ruby::rb_ary_reverse;
+use hyperdrive_ruby::ruby_special_consts::RUBY_Qnil;
+use ir::OpCode::Snapshot;
 use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::ir::types::I64;
 use cranelift::prelude::*;
 use cranelift_module::*;
 use cranelift_simplejit::*;
 use cranelift_module::FuncOrDataId::Func;
-use cranelift_codegen::Context;
-
 use ir::*;
 use yarv_opcode::*;
+use vm_call_cache::*;
 
 macro_rules! value_2_i64 {
     ($x:ident, $builder:ident) => {{
@@ -47,8 +48,11 @@ impl <'a> TraceCompiler<'a> {
         self.builder.switch_to_block(loop_block);
 
         let mut stack = vec![];
-        for (i, node) in trace.iter().enumerate() {
+        for (_i, node) in trace.iter().enumerate() {
             match node.opcode {
+                OpCode::Yarv(YarvOpCode::putnil) => {
+                    stack.push(self.builder.ins().iconst(I64, RUBY_Qnil as i64));
+                },
                 OpCode::Yarv(YarvOpCode::putobject_INT2FIX_1_) => {
                     stack.push(self.builder.ins().iconst(I64, 1 as i64));
                 },
@@ -72,8 +76,6 @@ impl <'a> TraceCompiler<'a> {
                         },
                         _ => panic!("unexpect type {:?} in getlocal", node.type_),
                     }
-                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
@@ -118,7 +120,31 @@ impl <'a> TraceCompiler<'a> {
                     }
 
                 },
-                _=> { }
+                OpCode::Yarv(YarvOpCode::opt_send_without_block) => {
+                    //print!("function address: {:?}", &rb_ary_reverse as *const _);
+
+                    let _call_cache = VmCallCache::new(node.operands[1] as *const _);
+
+                    let receiver = stack.pop().expect("stack underflow in send");
+                    let func = rb_ary_reverse as *const u64;
+                    let func = self.builder.ins().iconst(I64, func as i64);
+                    //print!("func address: {:?}", func);
+                    let sig = Signature {
+                        params: vec![AbiParam::new(I64)],
+                        returns: vec![AbiParam::new(I64)],
+                        call_conv: CallConv::SystemV,
+                    };
+                    let sig = self.builder.import_signature(sig);
+
+                    let call = self.builder.ins().call_indirect(sig, func, &[receiver]);
+                    let result = self.builder.inst_results(call)[0];
+                    stack.push(result);
+                },
+                OpCode::Yarv(YarvOpCode::pop) => {
+                    stack.pop().expect("stack underflow in pop");
+                },
+                Snapshot(_) => {},
+                _ => panic!("unimplemented: {:?}", node.opcode),
             };
         };
         self.builder.ins().return_(&[]);

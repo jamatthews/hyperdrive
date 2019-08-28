@@ -11,9 +11,13 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
     match opcode {
         YarvOpCode::getlocal_WC_0 => {
             let offset = instruction.get_operand(0);
+            let type_ =  match nodes.last() {
+                Some(node) => node.type_.clone(),
+                _ => IrType::Integer,
+            };
             nodes.push(
                 IrNode {
-                    type_: IrType::Integer,
+                    type_: type_,
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![offset],
                 }
@@ -83,6 +87,33 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
                     type_: IrType::Array,
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![array],
+                }
+            );
+        },
+        YarvOpCode::opt_send_without_block => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Array,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![instruction.get_operand(0), instruction.get_operand(1)],
+                }
+            );
+        },
+        YarvOpCode::pop => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Integer,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
+                }
+            );
+        },
+        YarvOpCode::putnil => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Nil,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
                 }
             );
         },

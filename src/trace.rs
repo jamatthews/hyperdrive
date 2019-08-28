@@ -12,7 +12,7 @@ use trace_compiler::TraceCompiler;
 use cranelift_codegen::ir::types::I64;
 
 use instruction_recorder::record_instruction;
- use hyperdrive_ruby::rb_ary_resurrect;
+use hyperdrive_ruby::rb_ary_resurrect;
 
 pub type IrNodes = Vec<IrNode>;
 
@@ -62,7 +62,7 @@ impl Trace {
             returns: vec![AbiParam::new(I64)],
             call_conv: CallConv::SystemV,
         };
-        let func_id = module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
+        let _func_id = module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
 
         let func_id = module
             .declare_function("test", Linkage::Export, &codegen_context.func.signature)

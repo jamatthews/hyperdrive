@@ -1,20 +1,20 @@
 require "test_helper"
 
 class BasicTest < Minitest::Test
-  def test_constant_folded
+  def test_direct_call
     #puts RubyVM::InstructionSequence.of(:minimum_loop).disasm
-    assert_equal [1], minimum_loop
+    assert_equal [1,2], minimum_loop
   end
 
   private
 
   def minimum_loop
     i = 0
-    z = [1]
+    x = []
     while i < 1002
       i += 1
-      z = [1]
+      x = [2,1].reverse
     end
-    z
+    x
   end
 end
