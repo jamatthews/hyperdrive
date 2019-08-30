@@ -1,5 +1,5 @@
 use hyperdrive_ruby::rb_ary_reverse;
-use hyperdrive_ruby::ruby_special_consts::RUBY_Qnil;
+use hyperdrive_ruby::ruby_special_consts_RUBY_Qnil;
 use ir::OpCode::Snapshot;
 use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::ir::types::I64;
@@ -51,7 +51,7 @@ impl <'a> TraceCompiler<'a> {
         for (_i, node) in trace.iter().enumerate() {
             match node.opcode {
                 OpCode::Yarv(YarvOpCode::putnil) => {
-                    stack.push(self.builder.ins().iconst(I64, RUBY_Qnil as i64));
+                    stack.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
                 },
                 OpCode::Yarv(YarvOpCode::putobject_INT2FIX_1_) => {
                     stack.push(self.builder.ins().iconst(I64, 1 as i64));
@@ -121,14 +121,11 @@ impl <'a> TraceCompiler<'a> {
 
                 },
                 OpCode::Yarv(YarvOpCode::opt_send_without_block) => {
-                    //print!("function address: {:?}", &rb_ary_reverse as *const _);
-
-                    let _call_cache = VmCallCache::new(node.operands[1] as *const _);
-
-                    let receiver = stack.pop().expect("stack underflow in send");
-                    let func = rb_ary_reverse as *const u64;
+                    let call_cache = VmCallCache::new(node.operands[1] as *const _);
+                    let func = call_cache.get_func() as *const u64;
                     let func = self.builder.ins().iconst(I64, func as i64);
-                    //print!("func address: {:?}", func);
+                    let receiver = stack.pop().expect("stack underflow in send");
+
                     let sig = Signature {
                         params: vec![AbiParam::new(I64)],
                         returns: vec![AbiParam::new(I64)],

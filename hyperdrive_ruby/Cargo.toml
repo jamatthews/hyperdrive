@@ -4,7 +4,7 @@ version = "0.0.0"
 build = "build.rs"
 
 [build-dependencies]
-bindgen = "^0.25"
+bindgen = "0.51"
 
 [dependencies]
 libc = "*"

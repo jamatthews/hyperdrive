@@ -5,6 +5,8 @@ use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::Command;
 
+use bindgen::RustTarget;
+
 fn rbconfig(key: &str) -> String {
     let ruby = match env::var_os("RUBY") {
         Some(val) => val.to_os_string(),
@@ -24,7 +26,7 @@ fn main() {
     // println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
 
     let bindings = bindgen::Builder::default()
-        .no_unstable_rust()
+        .rust_target(RustTarget::Stable_1_33)
         .header("src/wrapper.h")
         .clang_arg(format!("-I{}", rbconfig("rubyhdrdir")))
         .clang_arg(format!("-I{}", rbconfig("rubyarchhdrdir")))

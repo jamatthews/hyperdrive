@@ -18,10 +18,7 @@ impl VmCallCache {
         unsafe {
             let method_entry = *(*self.cc).me;
             let definition = *method_entry.def;
-            let body = definition.body;
-            let cfunc = body.cfunc;
-            //println!("in call cache: {:?}", cfunc.as_ref().func.expect("missing func"));
-            cfunc.as_ref().func.expect("missing func")
+            definition.body.cfunc.func.expect("missing func in callcache")
         }
     }
 }

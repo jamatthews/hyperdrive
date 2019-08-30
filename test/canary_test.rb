@@ -2,13 +2,12 @@ require "test_helper"
 
 class BasicTest < Minitest::Test
   def test_direct_call
-    #puts RubyVM::InstructionSequence.of(:minimum_loop).disasm
-    assert_equal [1,2], minimum_loop
+    assert_equal [1,2], loop
   end
 
   private
 
-  def minimum_loop
+  def loop
     i = 0
     x = []
     while i < 1002
