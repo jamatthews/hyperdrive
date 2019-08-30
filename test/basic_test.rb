@@ -22,4 +22,19 @@ class BasicTest < Minitest::Test
     assert x = [1,2]
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
+
+  def test_method_call
+    trace_count = Hyperdrive.trace_count
+    i = 0
+    while i < 1002
+      i = add_one(i)
+    end
+    assert i = 1002
+    assert_equal Hyperdrive.trace_count, trace_count + 1
+  end
+
+  private
+  def add_one(x)
+    x + 1
+  end
 end

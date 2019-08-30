@@ -10,6 +10,7 @@ pub struct IrNode {
 
 #[derive(Clone, Debug)]
 pub enum IrType {
+    Class,
     Integer,
     Boolean,
     None,
