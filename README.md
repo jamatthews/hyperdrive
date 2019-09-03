@@ -22,7 +22,11 @@ vm cfunc     1.954347   0.002023   1.956370 (  1.958966)
 jit cfunc    0.660276   0.000754   0.661030 (  0.662081)
 ```
 
+Status: Rough proof of concept
+
 Hyperdrive is a tracing JIT for CRuby, heavily inspired by LuaJIT. Tracing is currently out of fashion but there are some major advantages for high level lanuages like Ruby, if you don't have the developer resources to build a fully optimizing function/method JIT like C2, V8, JavaScriptCore
+
+
 
 * Traces naturally specialise based on the types recorded
 * Control flow inside a trace is essentially linear so a single simple IR can be used to apply optimizations.
@@ -32,3 +36,8 @@ Current optimizations are:
 * Type specialisation - no branching on object type
 * Elimination of stack operations - better use of registers
 * Method lookup is eliminated by reading from the bytecode inline cache - lots of indirection is compiled to a simple call
+
+Building:
+rbenv install --patch 2.6.3 < curl https://gist.githubusercontent.com/jamatthews/3db6cb2b7dfb52081f25a86e9ce12955/raw/d1dc894a68dc2ab59304047171f7c1e59506b350/hyperdrive.patch
+cargo cinstall --prefix=/usr/local --libdir=/usr/local/lib
+bundle exec rake
