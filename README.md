@@ -38,6 +38,8 @@ Current optimizations are:
 * Method lookup is eliminated by reading from the bytecode inline cache - lots of indirection is compiled to a simple call
 
 Building:
+```
 rbenv install --patch 2.6.3 < curl https://gist.githubusercontent.com/jamatthews/3db6cb2b7dfb52081f25a86e9ce12955/raw/d1dc894a68dc2ab59304047171f7c1e59506b350/hyperdrive.patch
 cargo cinstall --prefix=/usr/local --libdir=/usr/local/lib
 bundle exec rake
+```
