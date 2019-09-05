@@ -65,7 +65,7 @@ impl Trace {
         let _func_id = module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
 
         let func_id = module
-            .declare_function("test", Linkage::Export, &codegen_context.func.signature)
+            .declare_function(&self.start.to_string(), Linkage::Export, &codegen_context.func.signature)
             .expect("CraneLift error declaring function");
 
         {

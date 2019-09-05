@@ -60,7 +60,9 @@ fn trace_dispatch(thread: VmThread) {
                     OpCode::Snapshot(pc) => pc as *const VALUE,
                     _ => panic!("tried to exit without a snapshot"),
                 };
-                existing_trace.compiled_code.unwrap()(thread.get_ep());
+                let trace_function = existing_trace.compiled_code.unwrap();
+                //println!("calling trace at: {:?}", trace_function);
+                trace_function(thread.get_ep());
                 thread.set_pc(target_pc);
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
@@ -82,6 +84,7 @@ fn trace_record_instruction(thread: VmThread){
             trace.complete();
             let mut trace = trace.clone();
             trace.compile();
+            //println!("inserted trace \n{:#?}", trace);
             hyperdrive.trace_heads.insert(trace.start, trace);
             hyperdrive.mode = Mode::Normal;
         },

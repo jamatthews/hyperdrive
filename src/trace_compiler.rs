@@ -39,6 +39,7 @@ impl <'a> TraceCompiler<'a> {
     }
 
     pub fn compile(&mut self, trace: Vec<IrNode>){
+        //println!("{:#?}", trace);
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
@@ -48,7 +49,7 @@ impl <'a> TraceCompiler<'a> {
         self.builder.switch_to_block(loop_block);
 
         let mut stack = vec![];
-        for (_i, node) in trace.iter().enumerate() {
+        for (i, node) in trace.iter().enumerate() {
             match node.opcode {
                 OpCode::Yarv(YarvOpCode::putnil) => {
                     stack.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
@@ -64,7 +65,7 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     match node.type_ {
-                        IrType::Integer => {
+                        IrType::Integer|IrType::None => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             let builder = &mut self.builder;
                             let unboxed = value_2_i64!(boxed, builder);
@@ -74,7 +75,7 @@ impl <'a> TraceCompiler<'a> {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             stack.push(boxed);
                         },
-                        _ => panic!("unexpect type {:?} in getlocal", node.type_),
+                        _ => panic!("unexpected: type {:?} in getlocal at offset: {} \n {:#?}", node.type_, i, trace),
                     }
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
@@ -103,9 +104,42 @@ impl <'a> TraceCompiler<'a> {
                     let result = self.builder.ins().icmp(IntCC::SignedLessThan, a, b);
                     stack.push(result);
                 },
+                OpCode::Yarv(YarvOpCode::opt_eq) => {
+                    let b = stack.pop().expect("stack underflow in opt_eq");
+                    let a = stack.pop().expect("stack underflow in opt_eq");
+                    let result = self.builder.ins().icmp(IntCC::Equal, a, b);
+                    stack.push(result);
+                },
                 OpCode::Yarv(YarvOpCode::branchif) => {
                     let a = stack.pop().expect("stack underflow in branchif");
-                    self.builder.ins().brnz(a, loop_block, &[]);
+
+                    if i == trace.len() - 2 {
+                        self.builder.ins().brnz(a, loop_block, &[]);
+                    } else {
+                        let loop_block = self.builder.create_ebb();
+                        let side_exit_block = self.builder.create_ebb();
+                        self.builder.ins().brnz(a, side_exit_block, &[]);
+                        self.builder.ins().jump(loop_block, &[]);
+                        self.builder.switch_to_block(side_exit_block);
+                        self.builder.ins().return_(&[]);
+                        self.builder.switch_to_block(loop_block);
+                    }
+
+                },
+                OpCode::Yarv(YarvOpCode::branchunless) => {
+                    let a = stack.pop().expect("stack underflow in branchif");
+                    if i == trace.len() - 2 {
+                        self.builder.ins().brnz(a, loop_block, &[]);
+                    } else {
+                        let loop_block = self.builder.create_ebb();
+                        let side_exit_block = self.builder.create_ebb();
+                        self.builder.ins().brnz(a, side_exit_block, &[]);
+                        self.builder.ins().jump(loop_block, &[]);
+                        self.builder.switch_to_block(side_exit_block);
+                        self.builder.ins().return_(&[]);
+                        self.builder.switch_to_block(loop_block);
+                    }
+
                 },
                 OpCode::Yarv(YarvOpCode::duparray) => {
                     let array = node.operands[0];
@@ -141,7 +175,7 @@ impl <'a> TraceCompiler<'a> {
                     stack.pop().expect("stack underflow in pop");
                 },
                 Snapshot(_) => {},
-                _ => panic!("unimplemented: {:?}", node.opcode),
+                _ => panic!("NYI: {:?}", node.opcode),
             };
         };
         self.builder.ins().return_(&[]);

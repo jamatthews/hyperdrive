@@ -64,6 +64,15 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
                 }
             );
         },
+        YarvOpCode::opt_eq => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Boolean,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
+                }
+            );
+        },
         YarvOpCode::opt_lt => {
             nodes.push(
                 IrNode {
@@ -74,6 +83,16 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
             );
         },
         YarvOpCode::branchif => {
+            let target = instruction.get_operand(0);
+            nodes.push(
+                IrNode {
+                    type_: IrType::None,
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![target],
+                }
+            );
+        },
+        YarvOpCode::branchunless => {
             let target = instruction.get_operand(0);
             nodes.push(
                 IrNode {
@@ -95,7 +114,7 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
         },
         YarvOpCode::opt_send_without_block => {
             let call_cache = VmCallCache::new(instruction.get_operand(1) as *const _);
-            if call_cache.get_type() == rb_method_type_t_VM_METHOD_TYPE_CFUNC{
+            if call_cache.get_type() == rb_method_type_t_VM_METHOD_TYPE_CFUNC {
                 nodes.push(
                     IrNode {
                         type_: IrType::Array,
