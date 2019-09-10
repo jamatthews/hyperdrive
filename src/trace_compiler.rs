@@ -1,4 +1,3 @@
-use hyperdrive_ruby::rb_ary_reverse;
 use hyperdrive_ruby::ruby_special_consts_RUBY_Qnil;
 use ir::OpCode::Snapshot;
 use cranelift_codegen::isa::CallConv;

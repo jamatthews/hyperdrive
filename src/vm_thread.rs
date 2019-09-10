@@ -1,4 +1,3 @@
-use yarv_types::Value;
 use hyperdrive_ruby::VALUE;
 use hyperdrive_ruby::rb_thread_t;
 
