@@ -20,6 +20,7 @@ pub enum IrType {
 pub enum InternalType {
     I64,
     Bool,
+    Value,
 }
 
 #[derive(Clone, Debug)]

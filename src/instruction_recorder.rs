@@ -65,6 +65,16 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
                 }
             );
         },
+        YarvOpCode::putstring => {
+            let raw_value = instruction.get_operand(0);
+            nodes.push(
+                IrNode {
+                    type_: IrType::Yarv(ValueType::RString),
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![raw_value],
+                }
+            );
+        },
         YarvOpCode::opt_eq => {
             nodes.push(
                 IrNode {
@@ -100,6 +110,17 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
                     type_: IrType::None,
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![target],
+                }
+            );
+        },
+        YarvOpCode::dup => {
+            let object = instruction.get_operand(0);
+
+            nodes.push(
+                IrNode {
+                    type_: IrType::Yarv(ValueType::RString),
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![object],
                 }
             );
         },
@@ -139,6 +160,33 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
             nodes.push(
                 IrNode {
                     type_: IrType::Yarv(ValueType::Nil),
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
+                }
+            );
+        },
+        YarvOpCode::opt_empty_p => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Internal(InternalType::Bool),
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
+                }
+            );
+        },
+        YarvOpCode::opt_not => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Internal(InternalType::Bool),
+                    opcode: OpCode::Yarv(opcode),
+                    operands: vec![],
+                }
+            );
+        },
+        YarvOpCode::opt_aref => {
+            nodes.push(
+                IrNode {
+                    type_: IrType::Internal(InternalType::Value),
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![],
                 }

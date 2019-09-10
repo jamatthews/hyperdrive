@@ -11,6 +11,16 @@ use yarv_opcode::*;
 use yarv_types::*;
 use vm_call_cache::*;
 
+macro_rules! b1_2_value {
+    ($x:ident, $builder:ident) => {{
+        let fifth_bit = $builder.ins().bint(I64, $x);
+        let fifth_bit = $builder.ins().ishl_imm(fifth_bit, 4);
+        let third_bit = $builder.ins().bint(I64, $x);
+        let third_bit = $builder.ins().ishl_imm(third_bit, 2);
+        $builder.ins().iadd(fifth_bit, third_bit)
+    }}
+}
+
 macro_rules! value_2_i64 {
     ($x:ident, $builder:ident) => {{
         $builder.ins().ushr_imm($x, 1)
@@ -57,6 +67,9 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::putobject_INT2FIX_1_) => {
                     stack.push(self.builder.ins().iconst(I64, 1 as i64));
                 },
+                OpCode::Yarv(YarvOpCode::putobject_INT2FIX_0_) => {
+                    stack.push(self.builder.ins().iconst(I64, 0 as i64));
+                },
                 OpCode::Yarv(YarvOpCode::opt_plus) => {
                     let b = stack.pop().expect("stack underflow in opt_plus");
                     let a = stack.pop().expect("stack underflow in opt_plus");
@@ -91,8 +104,18 @@ impl <'a> TraceCompiler<'a> {
                             let rvalue = stack.pop().expect("stack underflow in setlocal");
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
+                        IrType::Internal(InternalType::Bool) => {
+                            let unboxed = stack.pop().expect("stack underflow in setlocal");
+                            let builder = &mut self.builder;
+                            let rvalue = b1_2_value!(unboxed, builder);
+                            self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
+                        }
                         _ => panic!("unexpect type {:?} in setlocal", node.type_),
                     };
+                },
+                OpCode::Yarv(YarvOpCode::putstring) => {
+                    let unboxed = node.operands[0];
+                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
                 OpCode::Yarv(YarvOpCode::putobject) => {
                     let unboxed = node.operands[0] >> 1;
@@ -171,8 +194,31 @@ impl <'a> TraceCompiler<'a> {
                     let result = self.builder.inst_results(call)[0];
                     stack.push(result);
                 },
+                OpCode::Yarv(YarvOpCode::opt_empty_p) => {
+                    let receiver = stack.pop().expect("stack underflow in send");
+
+                    if let Some(Func(id)) = self.module.get_name("_rb_str_strlen") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        let call = self.builder.ins().call(func_ref, &[receiver]);
+                        let count = self.builder.inst_results(call)[0];
+                        let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
+                        stack.push(result);
+                    } else {
+                        panic!("function not found!");
+                    }
+
+                },
                 OpCode::Yarv(YarvOpCode::pop) => {
                     stack.pop().expect("stack underflow in pop");
+                },
+                OpCode::Yarv(YarvOpCode::dup) => {
+                    let unboxed = node.operands[0];
+                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
+                },
+                OpCode::Yarv(YarvOpCode::opt_not) => {
+                    let val = stack.pop().expect("stack underflow in branchif");
+                    let result = self.builder.ins().bnot(val);
+                    stack.push(result);
                 },
                 Snapshot(_) => {},
                 _ => panic!("NYI: {:?}", node.opcode),
