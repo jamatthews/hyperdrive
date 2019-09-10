@@ -9,7 +9,7 @@ end
 class BlankTest < Minitest::Test
   def test_string_blank
     trace_count = Hyperdrive.trace_count
-    x = true
+    x = false
     i = 0
     while i < 1002
       x = ''.blank?
