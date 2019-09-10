@@ -9,6 +9,7 @@ use cranelift_simplejit::*;
 use cranelift_module::FuncOrDataId::Func;
 use ir::*;
 use yarv_opcode::*;
+use yarv_types::*;
 use vm_call_cache::*;
 
 macro_rules! value_2_i64 {
@@ -65,13 +66,13 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     match node.type_ {
-                        IrType::Integer|IrType::None => {
+                        IrType::Yarv(ValueType::Fixnum) => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             let builder = &mut self.builder;
                             let unboxed = value_2_i64!(boxed, builder);
                             stack.push(unboxed);
                         },
-                        IrType::Array => {
+                        IrType::Yarv(ValueType::Array) => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             stack.push(boxed);
                         },
@@ -81,13 +82,13 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     match node.type_ {
-                        IrType::Integer => {
+                        IrType::Internal(InternalType::I64) => {
                             let unboxed = stack.pop().expect("stack underflow in setlocal");
                             let builder = &mut self.builder;
                             let rvalue = i64_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
-                        IrType::Array => {
+                        IrType::Yarv(ValueType::Array) => {
                             let rvalue = stack.pop().expect("stack underflow in setlocal");
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },

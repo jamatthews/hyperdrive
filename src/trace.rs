@@ -37,7 +37,7 @@ impl Trace {
     pub fn complete(&mut self) {
         self.nodes.push(
             IrNode {
-                type_: IrType::Snapshot,
+                type_: IrType::None,
                 opcode: OpCode::Snapshot(self.exit + 8),
                 operands: vec![],
             }

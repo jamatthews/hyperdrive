@@ -1,3 +1,4 @@
+use yarv_types::ValueType;
 use yarv_opcode::YarvOpCode;
 use hyperdrive_ruby::VALUE;
 
@@ -10,13 +11,15 @@ pub struct IrNode {
 
 #[derive(Clone, Debug)]
 pub enum IrType {
-    Class,
-    Integer,
-    Boolean,
+    Yarv(ValueType),
+    Internal(InternalType),
     None,
-    Snapshot,
-    Array,
-    Nil
+}
+
+#[derive(Clone, Debug)]
+pub enum InternalType {
+    I64,
+    Bool,
 }
 
 #[derive(Clone, Debug)]

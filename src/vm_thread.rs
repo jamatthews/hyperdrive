@@ -1,3 +1,4 @@
+use yarv_types::Value;
 use hyperdrive_ruby::VALUE;
 use hyperdrive_ruby::rb_thread_t;
 
@@ -26,5 +27,9 @@ impl VmThread {
 
     pub fn get_ep(&self) -> *const VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).ep }
+    }
+
+    pub fn get_local(&self, offset: u64) -> VALUE {
+        unsafe { * self.get_ep().offset(-(offset as isize)) }
     }
 }

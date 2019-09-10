@@ -15,6 +15,7 @@ mod trace;
 mod trace_compiler;
 mod yarv_instruction;
 mod yarv_opcode;
+mod yarv_types;
 mod vm_call_cache;
 mod vm_thread;
 
