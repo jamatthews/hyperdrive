@@ -49,7 +49,6 @@ impl <'a> TraceCompiler<'a> {
     }
 
     pub fn compile(&mut self, trace: Vec<IrNode>){
-        //println!("{:#?}", trace);
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
@@ -84,7 +83,7 @@ impl <'a> TraceCompiler<'a> {
                             let unboxed = value_2_i64!(boxed, builder);
                             stack.push(unboxed);
                         },
-                        IrType::Yarv(ValueType::Array) => {
+                        IrType::Yarv(ValueType::Array)|IrType::Yarv(ValueType::True) => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             stack.push(boxed);
                         },
@@ -94,7 +93,7 @@ impl <'a> TraceCompiler<'a> {
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     match node.type_ {
-                        IrType::Internal(InternalType::I64) => {
+                        IrType::Yarv(ValueType::Fixnum) => {
                             let unboxed = stack.pop().expect("stack underflow in setlocal");
                             let builder = &mut self.builder;
                             let rvalue = i64_2_value!(unboxed, builder);
@@ -104,13 +103,13 @@ impl <'a> TraceCompiler<'a> {
                             let rvalue = stack.pop().expect("stack underflow in setlocal");
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
-                        IrType::Internal(InternalType::Bool) => {
+                        IrType::Internal(InternalType::Bool)|IrType::Yarv(ValueType::True) => {
                             let unboxed = stack.pop().expect("stack underflow in setlocal");
                             let builder = &mut self.builder;
                             let rvalue = b1_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         }
-                        _ => panic!("unexpect type {:?} in setlocal", node.type_),
+                        _ => panic!("unexpect type {:?} in setlocal\n {:#?} ", node.type_, trace),
                     };
                 },
                 OpCode::Yarv(YarvOpCode::putstring) => {
@@ -212,8 +211,9 @@ impl <'a> TraceCompiler<'a> {
                     stack.pop().expect("stack underflow in pop");
                 },
                 OpCode::Yarv(YarvOpCode::dup) => {
-                    let unboxed = node.operands[0];
-                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
+                    let val = stack.pop().expect("stack underflow in dup");
+                    stack.push(val);
+                    stack.push(val);
                 },
                 OpCode::Yarv(YarvOpCode::opt_not) => {
                     let val = stack.pop().expect("stack underflow in branchif");

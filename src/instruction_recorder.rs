@@ -45,9 +45,11 @@ pub fn record_instruction(nodes: &mut IrNodes, thread: VmThread) {
         },
         YarvOpCode::setlocal_WC_0 => {
             let offset = instruction.get_operand(0);
+            let value: Value = unsafe { *thread.get_sp().offset(-1) }.into();
+
             nodes.push(
                 IrNode {
-                    type_: nodes.last().expect("setlocal can't be first insn").type_.clone(),
+                    type_: IrType::Yarv(value.type_()),
                     opcode: OpCode::Yarv(opcode),
                     operands: vec![offset],
                 }
