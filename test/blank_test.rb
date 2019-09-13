@@ -11,11 +11,12 @@ class BlankTest < Minitest::Test
     trace_count = Hyperdrive.trace_count
     x = false
     i = 0
-    while i < 1002
+    while i < 2000
       x = ''.blank?
       i = i + 1
     end
-    assert_equal x, true
-    assert_equal Hyperdrive.trace_count, trace_count + 1
+    assert_equal 2000, i
+    assert_equal true, x
+    assert_equal trace_count + 1, Hyperdrive.trace_count
   end
 end

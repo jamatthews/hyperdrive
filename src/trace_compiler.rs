@@ -49,6 +49,7 @@ impl <'a> TraceCompiler<'a> {
     }
 
     pub fn compile(&mut self, trace: Vec<IrNode>){
+        //println!("{:#?}", trace);
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
@@ -92,24 +93,26 @@ impl <'a> TraceCompiler<'a> {
                 },
                 OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
-                    match node.type_ {
-                        IrType::Yarv(ValueType::Fixnum) => {
+                    let ssa_ref = node.ssa_operands[0];
+
+                    match trace[ssa_ref].type_ {
+                        IrType::Internal(InternalType::I64) => {
                             let unboxed = stack.pop().expect("stack underflow in setlocal");
                             let builder = &mut self.builder;
                             let rvalue = i64_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
-                        IrType::Yarv(ValueType::Array) => {
+                        IrType::Yarv(ValueType::Array)|IrType::Internal(InternalType::Value) => {
                             let rvalue = stack.pop().expect("stack underflow in setlocal");
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
-                        IrType::Internal(InternalType::Bool)|IrType::Yarv(ValueType::True) => {
+                        IrType::Internal(InternalType::Bool) => {
                             let unboxed = stack.pop().expect("stack underflow in setlocal");
                             let builder = &mut self.builder;
                             let rvalue = b1_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         }
-                        _ => panic!("unexpect type {:?} in setlocal\n {:#?} ", node.type_, trace),
+                        _ => panic!("unexpect type {:?} in setlocal\n {:#?} ", trace[ssa_ref].type_, trace),
                     };
                 },
                 OpCode::Yarv(YarvOpCode::putstring) => {
@@ -140,7 +143,7 @@ impl <'a> TraceCompiler<'a> {
                     } else {
                         let loop_block = self.builder.create_ebb();
                         let side_exit_block = self.builder.create_ebb();
-                        self.builder.ins().brnz(a, side_exit_block, &[]);
+                        self.builder.ins().brz(a, side_exit_block, &[]);
                         self.builder.ins().jump(loop_block, &[]);
                         self.builder.switch_to_block(side_exit_block);
                         self.builder.ins().return_(&[]);
@@ -161,7 +164,6 @@ impl <'a> TraceCompiler<'a> {
                         self.builder.ins().return_(&[]);
                         self.builder.switch_to_block(loop_block);
                     }
-
                 },
                 OpCode::Yarv(YarvOpCode::duparray) => {
                     let array = node.operands[0];
@@ -216,9 +218,22 @@ impl <'a> TraceCompiler<'a> {
                     stack.push(val);
                 },
                 OpCode::Yarv(YarvOpCode::opt_not) => {
-                    let val = stack.pop().expect("stack underflow in branchif");
-                    let result = self.builder.ins().bnot(val);
-                    stack.push(result);
+                    let ssa_ref = node.ssa_operands[0];
+
+                    match trace[ssa_ref].type_ {
+                        IrType::Internal(InternalType::Bool) => {
+                            let val = stack.pop().expect("stack underflow in opt_not");
+                            let result = self.builder.ins().bnot(val);
+                            stack.push(result);
+                        },
+                        IrType::Internal(InternalType::Value) => {
+                            let val = stack.pop().expect("stack underflow in opt_not");
+                            let result = self.builder.ins().icmp_imm(IntCC::Equal, val, 0);
+                            stack.push(result);
+                        }
+                        _ => panic!("unexpect type {:?} in opt_not\n {:#?} ", trace[ssa_ref].type_, trace),
+                    };
+
                 },
                 Snapshot(_) => {},
                 _ => panic!("NYI: {:?}", node.opcode),

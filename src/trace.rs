@@ -12,13 +12,14 @@ use cranelift_simplejit::*;
 use trace_compiler::TraceCompiler;
 use cranelift_codegen::ir::types::I64;
 
-use instruction_recorder::record_instruction;
+use instruction_recorder::InstructionRecorder;
 use hyperdrive_ruby::rb_ary_resurrect;
 
 pub type IrNodes = Vec<IrNode>;
 
 #[derive(Clone, Debug)]
 pub struct Trace {
+    pub recorder: InstructionRecorder,
     pub nodes: IrNodes,
     pub start: u64,
     pub exit: u64,
@@ -28,6 +29,7 @@ pub struct Trace {
 impl Trace {
     pub fn new(pc: u64) -> Self {
         Trace {
+            recorder: InstructionRecorder { stack: vec![] },
             start: pc,
             exit: pc,
             nodes: vec![],
@@ -41,13 +43,14 @@ impl Trace {
                 type_: IrType::None,
                 opcode: OpCode::Snapshot(self.exit + 8),
                 operands: vec![],
+                ssa_operands: vec![],
             }
         );
     }
 
     pub fn record_instruction(&mut self, thread: VmThread) {
         self.exit = thread.get_pc() as u64;
-        record_instruction(&mut self.nodes, thread);
+        self.recorder.record_instruction(&mut self.nodes, thread);
     }
 
     pub fn compile(&mut self){
