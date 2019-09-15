@@ -12,7 +12,7 @@ class BlankTest < Minitest::Test
     x = false
     i = 0
     while i < 2000
-      x = ''.blank?
+      x = ' '.blank?
       i = i + 1
     end
     assert_equal 2000, i
