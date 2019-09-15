@@ -46,14 +46,6 @@ impl Trace {
                 ssa_operands: vec![],
             }
         );
-        self.nodes.push(
-            IrNode {
-                type_: IrType::None,
-                opcode: OpCode::Snapshot(self.exit + 8),
-                operands: vec![],
-                ssa_operands: vec![],
-            }
-        );
     }
 
     pub fn record_instruction(&mut self, thread: VmThread) {

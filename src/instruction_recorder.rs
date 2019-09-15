@@ -26,6 +26,10 @@ impl InstructionRecorder {
         let instruction = YarvInstruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
+        if thread.get_pc() as u64 == self.anchor {
+
+        }
+
         match opcode {
             YarvOpCode::getlocal_WC_0 => {
                 let offset = instruction.get_operand(0);
@@ -145,6 +149,14 @@ impl InstructionRecorder {
                         ssa_operands: vec![
                             self.stack.pop().expect("ssa stack underflow in branch"),
                         ],
+                    }
+                );
+                nodes.push(
+                    IrNode {
+                        type_: IrType::None,
+                        opcode: OpCode::Snapshot(thread.get_pc() as u64 + 8),
+                        operands: vec![],
+                        ssa_operands: vec![],
                     }
                 );
             },
