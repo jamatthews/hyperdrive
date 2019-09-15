@@ -22,7 +22,6 @@ pub struct Trace {
     pub recorder: InstructionRecorder,
     pub nodes: IrNodes,
     pub start: u64,
-    pub exit: u64,
     pub compiled_code: Option<fn(*const VALUE) -> i64>,
 }
 
@@ -31,25 +30,12 @@ impl Trace {
         Trace {
             recorder: InstructionRecorder::new(pc),
             start: pc,
-            exit: pc,
             nodes: vec![],
             compiled_code: None,
         }
     }
 
-    pub fn complete(&mut self) {
-        self.nodes.push(
-            IrNode {
-                type_: IrType::None,
-                opcode: OpCode::Loop,
-                operands: vec![],
-                ssa_operands: vec![],
-            }
-        );
-    }
-
     pub fn record_instruction(&mut self, thread: VmThread) {
-        self.exit = thread.get_pc() as u64;
         self.recorder.record_instruction(&mut self.nodes, thread);
     }
 

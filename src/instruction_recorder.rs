@@ -26,8 +26,16 @@ impl InstructionRecorder {
         let instruction = YarvInstruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
-        if thread.get_pc() as u64 == self.anchor {
-
+        if !nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
+            nodes.push(
+                IrNode {
+                    type_: IrType::None,
+                    opcode: OpCode::Loop,
+                    operands: vec![],
+                    ssa_operands: vec![],
+                }
+            );
+            return
         }
 
         match opcode {

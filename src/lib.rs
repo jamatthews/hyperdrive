@@ -82,7 +82,7 @@ fn trace_record_instruction(thread: VmThread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Recording(trace) if thread.get_pc() as u64 == trace.start => {
-            trace.complete();
+            trace.record_instruction(thread);
             let mut trace = trace.clone();
             trace.compile();
             //println!("inserted trace \n{:#?}", trace);
