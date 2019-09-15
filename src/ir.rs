@@ -30,4 +30,6 @@ pub enum InternalType {
 pub enum OpCode {
     Yarv(YarvOpCode),
     Snapshot(u64),
+    Guard(IrType),
+    Loop,
 }

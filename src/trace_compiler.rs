@@ -52,6 +52,7 @@ impl <'a> TraceCompiler<'a> {
         //println!("{:#?}", trace);
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
+        let original_loop_block = loop_block;
         self.builder.switch_to_block(entry_block);
         self.builder.append_ebb_params_for_function_params(entry_block);
         let ep = self.builder.ebb_params(entry_block)[0];
@@ -60,7 +61,7 @@ impl <'a> TraceCompiler<'a> {
 
         let mut stack = vec![];
         for (i, node) in trace.iter().enumerate() {
-            match node.opcode {
+            match &node.opcode {
                 OpCode::Yarv(YarvOpCode::putnil) => {
                     stack.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
                 },
@@ -135,36 +136,33 @@ impl <'a> TraceCompiler<'a> {
                     let result = self.builder.ins().icmp(IntCC::Equal, a, b);
                     stack.push(result);
                 },
-                OpCode::Yarv(YarvOpCode::branchif) => {
-                    let a = stack.pop().expect("stack underflow in branchif");
+                OpCode::Guard(IrType::Yarv(type_)) => {
+                    let value = stack.pop().expect("stack underflow in guard");
+                    let ssa_ref = node.ssa_operands[0];
 
-                    if i == trace.len() - 2 {
-                        self.builder.ins().brnz(a, loop_block, &[]);
-                    } else {
-                        let loop_block = self.builder.create_ebb();
-                        let side_exit_block = self.builder.create_ebb();
-                        self.builder.ins().brz(a, side_exit_block, &[]);
-                        self.builder.ins().jump(loop_block, &[]);
-                        self.builder.switch_to_block(side_exit_block);
-                        self.builder.ins().return_(&[]);
-                        self.builder.switch_to_block(loop_block);
-                    }
-
+                    match type_ {
+                        ValueType::True => {
+                            let loop_block = self.builder.create_ebb();
+                            let side_exit_block = self.builder.create_ebb();
+                            self.builder.ins().brz(value, side_exit_block, &[]);
+                            self.builder.ins().jump(loop_block, &[]);
+                            self.builder.switch_to_block(side_exit_block);
+                            self.builder.ins().return_(&[]);
+                            self.builder.switch_to_block(loop_block);
+                        },
+                        ValueType::False => {
+                            let loop_block = self.builder.create_ebb();
+                            let side_exit_block = self.builder.create_ebb();
+                            self.builder.ins().brnz(value, side_exit_block, &[]);
+                            self.builder.ins().jump(loop_block, &[]);
+                            self.builder.switch_to_block(side_exit_block);
+                            self.builder.ins().return_(&[]);
+                            self.builder.switch_to_block(loop_block);
+                        },
+                        _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace[ssa_ref].type_, trace),
+                    };
                 },
-                OpCode::Yarv(YarvOpCode::branchunless) => {
-                    let a = stack.pop().expect("stack underflow in branchif");
-                    if i == trace.len() - 2 {
-                        self.builder.ins().brnz(a, loop_block, &[]);
-                    } else {
-                        let loop_block = self.builder.create_ebb();
-                        let side_exit_block = self.builder.create_ebb();
-                        self.builder.ins().brnz(a, side_exit_block, &[]);
-                        self.builder.ins().jump(loop_block, &[]);
-                        self.builder.switch_to_block(side_exit_block);
-                        self.builder.ins().return_(&[]);
-                        self.builder.switch_to_block(loop_block);
-                    }
-                },
+                OpCode::Loop => { self.builder.ins().jump(original_loop_block, &[]); } ,
                 OpCode::Yarv(YarvOpCode::duparray) => {
                     let array = node.operands[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
@@ -239,7 +237,6 @@ impl <'a> TraceCompiler<'a> {
                 _ => panic!("NYI: {:?}", node.opcode),
             };
         };
-        self.builder.ins().return_(&[]);
     }
 
     pub fn preview(&mut self) -> Result<String, String> {

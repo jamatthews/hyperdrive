@@ -10,10 +10,18 @@ use vm_thread::VmThread;
 
 #[derive(Clone, Debug)]
 pub struct InstructionRecorder {
-    pub stack: Vec<SsaRef>
+    stack: Vec<SsaRef>,
+    anchor: u64,
 }
 
 impl InstructionRecorder {
+    pub fn new(anchor: u64) -> Self {
+        Self {
+            stack: vec![],
+            anchor: anchor,
+        }
+    }
+
     pub fn record_instruction(&mut self, nodes: &mut IrNodes, thread: VmThread) {
         let instruction = YarvInstruction::new(thread.get_pc());
         let opcode = instruction.opcode();
@@ -126,28 +134,16 @@ impl InstructionRecorder {
                 );
                 self.stack.push(nodes.len() - 1);
             },
-            YarvOpCode::branchif => {
-                let target = instruction.get_operand(0);
+            YarvOpCode::branchif|YarvOpCode::branchunless => {
+                let value: Value = unsafe { *thread.get_sp().offset(-1) }.into();
+
                 nodes.push(
                     IrNode {
                         type_: IrType::None,
-                        opcode: OpCode::Yarv(opcode),
-                        operands: vec![target],
+                        opcode: OpCode::Guard(IrType::Yarv(value.type_())),
+                        operands: vec![],
                         ssa_operands: vec![
-                            self.stack.pop().expect("ssa stack underflow in branchif"),
-                        ],
-                    }
-                );
-            },
-            YarvOpCode::branchunless => {
-                let target = instruction.get_operand(0);
-                nodes.push(
-                    IrNode {
-                        type_: IrType::None,
-                        opcode: OpCode::Yarv(opcode),
-                        operands: vec![target],
-                        ssa_operands: vec![
-                            self.stack.pop().expect("ssa stack underflow in branchunless"),
+                            self.stack.pop().expect("ssa stack underflow in branch"),
                         ],
                     }
                 );

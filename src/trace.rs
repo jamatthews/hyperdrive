@@ -29,7 +29,7 @@ pub struct Trace {
 impl Trace {
     pub fn new(pc: u64) -> Self {
         Trace {
-            recorder: InstructionRecorder { stack: vec![] },
+            recorder: InstructionRecorder::new(pc),
             start: pc,
             exit: pc,
             nodes: vec![],
@@ -38,6 +38,14 @@ impl Trace {
     }
 
     pub fn complete(&mut self) {
+        self.nodes.push(
+            IrNode {
+                type_: IrType::None,
+                opcode: OpCode::Loop,
+                operands: vec![],
+                ssa_operands: vec![],
+            }
+        );
         self.nodes.push(
             IrNode {
                 type_: IrType::None,
