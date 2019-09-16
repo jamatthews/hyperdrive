@@ -49,7 +49,6 @@ impl <'a> TraceCompiler<'a> {
     }
 
     pub fn compile(&mut self, trace: Vec<IrNode>){
-        //println!("{:#?}", trace);
         let entry_block = self.builder.create_ebb();
         let loop_block = self.builder.create_ebb();
         let original_loop_block = loop_block;

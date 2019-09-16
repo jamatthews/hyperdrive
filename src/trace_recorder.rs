@@ -9,25 +9,27 @@ use vm_call_cache::VmCallCache;
 use vm_thread::VmThread;
 
 #[derive(Clone, Debug)]
-pub struct InstructionRecorder {
+pub struct TraceRecorder {
+    pub nodes: IrNodes,
     stack: Vec<SsaRef>,
-    anchor: u64,
+    pub anchor: u64,
 }
 
-impl InstructionRecorder {
+impl TraceRecorder {
     pub fn new(anchor: u64) -> Self {
         Self {
+            nodes: vec![],
             stack: vec![],
             anchor: anchor,
         }
     }
 
-    pub fn record_instruction(&mut self, nodes: &mut IrNodes, thread: VmThread) {
+    pub fn record_instruction(&mut self, thread: VmThread) {
         let instruction = YarvInstruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
-        if !nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
-            nodes.push(
+        if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
+            self.nodes.push(
                 IrNode {
                     type_: IrType::None,
                     opcode: OpCode::Loop,
@@ -42,7 +44,7 @@ impl InstructionRecorder {
             YarvOpCode::getlocal_WC_0 => {
                 let offset = instruction.get_operand(0);
                 let value: Value = thread.get_local(offset).into();
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(value.type_()),
                         opcode: OpCode::Yarv(opcode),
@@ -50,10 +52,10 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::putobject_INT2FIX_1_ => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(ValueType::Fixnum),
                         opcode: OpCode::Yarv(opcode),
@@ -61,10 +63,10 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_plus => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::I64),
                         opcode: OpCode::Yarv(opcode),
@@ -75,13 +77,13 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::setlocal_WC_0 => {
                 let offset = instruction.get_operand(0);
                 let popped = self.stack.pop().expect("ssa stack underflow in setlocal");
 
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::None,
                         opcode: OpCode::Yarv(opcode),
@@ -96,7 +98,7 @@ impl InstructionRecorder {
                 let raw_value = instruction.get_operand(0);
                 let value: Value = raw_value.into();
 
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(value.type_()),
                         opcode: OpCode::Yarv(opcode),
@@ -104,11 +106,11 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::putstring => {
                 let raw_value = instruction.get_operand(0);
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(ValueType::RString),
                         opcode: OpCode::Yarv(opcode),
@@ -116,10 +118,10 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_eq => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::Bool),
                         opcode: OpCode::Yarv(opcode),
@@ -130,10 +132,10 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_lt => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::Bool),
                         opcode: OpCode::Yarv(opcode),
@@ -144,12 +146,12 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::branchif|YarvOpCode::branchunless => {
                 let value: Value = unsafe { *thread.get_sp().offset(-1) }.into();
 
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::None,
                         opcode: OpCode::Guard(IrType::Yarv(value.type_())),
@@ -159,7 +161,7 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::None,
                         opcode: OpCode::Snapshot(thread.get_pc() as u64 + 8),
@@ -170,20 +172,20 @@ impl InstructionRecorder {
             },
             YarvOpCode::dup => {
                 let popped = self.stack.pop().expect("ssa stack underflow in dup");
-                nodes.push(
+                self.nodes.push(
                     IrNode {
-                        type_: nodes[popped].type_.clone(),
+                        type_: self.nodes[popped].type_.clone(),
                         opcode: OpCode::Yarv(opcode),
                         operands: vec![],
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::duparray => {
                 let array = instruction.get_operand(0);
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(ValueType::Array),
                         opcode: OpCode::Yarv(opcode),
@@ -191,12 +193,12 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_send_without_block => {
                 let call_cache = VmCallCache::new(instruction.get_operand(1) as *const _);
                 if call_cache.get_type() == rb_method_type_t_VM_METHOD_TYPE_CFUNC {
-                    nodes.push(
+                    self.nodes.push(
                         IrNode {
                             type_: IrType::Internal(InternalType::Value),
                             opcode: OpCode::Yarv(opcode),
@@ -206,11 +208,11 @@ impl InstructionRecorder {
                             ],
                         }
                     );
-                    self.stack.push(nodes.len() - 1);
+                    self.stack.push(self.nodes.len() - 1);
                 }
             },
             YarvOpCode::pop => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::None,
                         opcode: OpCode::Yarv(opcode),
@@ -222,7 +224,7 @@ impl InstructionRecorder {
                 );
             },
             YarvOpCode::putnil => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Yarv(ValueType::Nil),
                         opcode: OpCode::Yarv(opcode),
@@ -230,10 +232,10 @@ impl InstructionRecorder {
                         ssa_operands: vec![],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_empty_p => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::Bool),
                         opcode: OpCode::Yarv(opcode),
@@ -243,10 +245,10 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_not => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::Bool),
                         opcode: OpCode::Yarv(opcode),
@@ -256,10 +258,10 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::opt_aref => {
-                nodes.push(
+                self.nodes.push(
                     IrNode {
                         type_: IrType::Internal(InternalType::Value),
                         opcode: OpCode::Yarv(opcode),
@@ -269,7 +271,7 @@ impl InstructionRecorder {
                         ],
                     }
                 );
-                self.stack.push(nodes.len() - 1);
+                self.stack.push(self.nodes.len() - 1);
             },
             YarvOpCode::putself|YarvOpCode::leave => {},
             _ => panic!("NYI: {:?}", opcode),

@@ -1,6 +1,5 @@
 use hyperdrive_ruby::rb_str_strlen;
 use ir::*;
-use vm_thread::VmThread;
 use hyperdrive_ruby::VALUE;
 use std::mem::transmute;
 use cranelift::prelude::*;
@@ -12,31 +11,24 @@ use cranelift_simplejit::*;
 use trace_compiler::TraceCompiler;
 use cranelift_codegen::ir::types::I64;
 
-use instruction_recorder::InstructionRecorder;
 use hyperdrive_ruby::rb_ary_resurrect;
 
 pub type IrNodes = Vec<IrNode>;
 
 #[derive(Clone, Debug)]
 pub struct Trace {
-    pub recorder: InstructionRecorder,
     pub nodes: IrNodes,
-    pub start: u64,
+    pub anchor: u64,
     pub compiled_code: Option<fn(*const VALUE) -> i64>,
 }
 
 impl Trace {
-    pub fn new(pc: u64) -> Self {
+    pub fn new(pc: u64, nodes: IrNodes) -> Self {
         Trace {
-            recorder: InstructionRecorder::new(pc),
-            start: pc,
-            nodes: vec![],
+            anchor: pc,
+            nodes: nodes,
             compiled_code: None,
         }
-    }
-
-    pub fn record_instruction(&mut self, thread: VmThread) {
-        self.recorder.record_instruction(&mut self.nodes, thread);
     }
 
     pub fn compile(&mut self){
@@ -57,7 +49,7 @@ impl Trace {
         module.declare_function("_rb_str_strlen", Linkage::Import, &sig).unwrap();
 
         let func_id = module
-            .declare_function(&self.start.to_string(), Linkage::Export, &codegen_context.func.signature)
+            .declare_function(&self.anchor.to_string(), Linkage::Export, &codegen_context.func.signature)
             .expect("CraneLift error declaring function");
 
         {
@@ -65,7 +57,6 @@ impl Trace {
             let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
             let mut compiler = TraceCompiler::new(&mut module, builder);
             compiler.compile(self.nodes.clone());
-            //println!("{}", compiler.preview().unwrap());
         }
 
         module

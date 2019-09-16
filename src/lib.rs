@@ -9,10 +9,10 @@ extern crate hyperdrive_ruby;
 
 #[cfg(cargo_c)]
 mod capi;
-mod instruction_recorder;
 mod ir;
 mod trace;
 mod trace_compiler;
+mod trace_recorder;
 mod yarv_instruction;
 mod yarv_opcode;
 mod yarv_types;
@@ -28,6 +28,7 @@ use hyperdrive_ruby::VALUE;
 #[cfg(cargo_c)]
 pub use capi::*;
 pub use trace::Trace;
+pub use trace_recorder::TraceRecorder;
 use vm_thread::VmThread;
 use ir::OpCode;
 
@@ -46,7 +47,7 @@ struct Hyperdrive {
 
 pub enum Mode {
     Normal,
-    Recording(Trace),
+    Recording(TraceRecorder),
     Executing,
 }
 
@@ -69,7 +70,7 @@ fn trace_dispatch(thread: VmThread) {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
-                    hyperdrive.mode = Mode::Recording(Trace::new(pc));
+                    hyperdrive.mode = Mode::Recording(TraceRecorder::new(pc));
                 }
             }
         },
@@ -81,15 +82,14 @@ fn trace_dispatch(thread: VmThread) {
 fn trace_record_instruction(thread: VmThread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
-        Mode::Recording(trace) if thread.get_pc() as u64 == trace.start => {
-            trace.record_instruction(thread);
-            let mut trace = trace.clone();
+        Mode::Recording(recorder) if !recorder.nodes.is_empty() && thread.get_pc() as u64 == recorder.anchor => {
+            recorder.record_instruction(thread);
+            let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
             trace.compile();
-            //println!("inserted trace \n{:#?}", trace);
-            hyperdrive.trace_heads.insert(trace.start, trace);
+            hyperdrive.trace_heads.insert(trace.anchor, trace);
             hyperdrive.mode = Mode::Normal;
         },
-        Mode::Recording(trace) => trace.record_instruction(thread),
+        Mode::Recording(recorder) => recorder.record_instruction(thread),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }
