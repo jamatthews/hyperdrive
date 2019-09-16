@@ -82,14 +82,15 @@ fn trace_dispatch(thread: VmThread) {
 fn trace_record_instruction(thread: VmThread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
-        Mode::Recording(recorder) if !recorder.nodes.is_empty() && thread.get_pc() as u64 == recorder.anchor => {
+        Mode::Recording(recorder) => {
             recorder.record_instruction(thread);
-            let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
-            trace.compile();
-            hyperdrive.trace_heads.insert(trace.anchor, trace);
-            hyperdrive.mode = Mode::Normal;
+            if recorder.complete {
+                let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
+                trace.compile();
+                hyperdrive.trace_heads.insert(trace.anchor, trace);
+                hyperdrive.mode = Mode::Normal;
+            }
         },
-        Mode::Recording(recorder) => recorder.record_instruction(thread),
         _ => panic!("tried to record instruction while not recording trace")
     };
 }

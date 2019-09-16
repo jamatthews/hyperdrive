@@ -13,6 +13,7 @@ pub struct TraceRecorder {
     pub nodes: IrNodes,
     stack: Vec<SsaRef>,
     pub anchor: u64,
+    pub complete: bool,
 }
 
 impl TraceRecorder {
@@ -21,6 +22,7 @@ impl TraceRecorder {
             nodes: vec![],
             stack: vec![],
             anchor: anchor,
+            complete: false,
         }
     }
 
@@ -37,6 +39,7 @@ impl TraceRecorder {
                     ssa_operands: vec![],
                 }
             );
+            self.complete = true;
             return
         }
 
