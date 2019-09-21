@@ -232,6 +232,19 @@ impl <'a> TraceCompiler<'a> {
                     };
 
                 },
+                OpCode::ArrayAppend => {
+                    let object = stack.pop().expect("stack underflow in array_append");
+                    let array = stack.pop().expect("stack underflow in array_append");
+
+                    if let Some(Func(id)) = self.module.get_name("_rb_ary_push") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        let call = self.builder.ins().call(func_ref, &[array, object]);
+                        let result = self.builder.inst_results(call)[0];
+                        stack.push(result);
+                    } else {
+                        panic!("function not found!");
+                    }
+                }
                 Snapshot(_) => {},
                 _ => panic!("NYI: {:?}", node.opcode),
             };

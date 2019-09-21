@@ -276,6 +276,28 @@ impl TraceRecorder {
                 );
                 self.stack.push(self.nodes.len() - 1);
             },
+            YarvOpCode::opt_ltlt => {
+                let object = self.stack.pop().expect("ssa stack underflow in opt_ltlt");
+                let receiver = self.stack.pop().expect("ssa stack underflow in opt_ltlt");
+
+                match self.nodes[receiver].type_.clone() {
+                    IrType::Yarv(ValueType::Array) => {
+                        self.nodes.push(
+                            IrNode {
+                                type_: IrType::Yarv(ValueType::Array),
+                                opcode: OpCode::ArrayAppend,
+                                operands: vec![],
+                                ssa_operands: vec![
+                                    object,
+                                    receiver,
+                                ],
+                            }
+                        );
+                        self.stack.push(self.nodes.len() - 1);
+                    }
+                    x => panic!("NYI: opt_ltlt with: {:#?}", x),
+                };
+            },
             YarvOpCode::putself|YarvOpCode::leave => {},
             _ => panic!("NYI: {:?}", opcode),
         }

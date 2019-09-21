@@ -32,4 +32,5 @@ pub enum OpCode {
     Snapshot(u64),
     Guard(IrType),
     Loop,
+    ArrayAppend,
 }
