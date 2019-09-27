@@ -7,9 +7,9 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 use cranelift_module::FuncOrDataId::Func;
 use ir::*;
-use yarv_opcode::*;
-use yarv_types::*;
-use vm_call_cache::*;
+use ir::OpCode;
+use vm;
+use vm::*;
 
 macro_rules! b1_2_value {
     ($x:ident, $builder:ident) => {{
@@ -61,21 +61,21 @@ impl <'a> TraceCompiler<'a> {
         let mut stack = vec![];
         for (i, node) in trace.iter().enumerate() {
             match &node.opcode {
-                OpCode::Yarv(YarvOpCode::putnil) => {
+                OpCode::Yarv(vm::OpCode::putnil) => {
                     stack.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
                 },
-                OpCode::Yarv(YarvOpCode::putobject_INT2FIX_1_) => {
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => {
                     stack.push(self.builder.ins().iconst(I64, 1 as i64));
                 },
-                OpCode::Yarv(YarvOpCode::putobject_INT2FIX_0_) => {
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => {
                     stack.push(self.builder.ins().iconst(I64, 0 as i64));
                 },
-                OpCode::Yarv(YarvOpCode::opt_plus) => {
+                OpCode::Yarv(vm::OpCode::opt_plus) => {
                     let b = stack.pop().expect("stack underflow in opt_plus");
                     let a = stack.pop().expect("stack underflow in opt_plus");
                     stack.push(self.builder.ins().iadd(a, b));
                 },
-                OpCode::Yarv(YarvOpCode::getlocal_WC_0) => {
+                OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     match node.type_ {
                         IrType::Yarv(ValueType::Fixnum) => {
@@ -91,7 +91,7 @@ impl <'a> TraceCompiler<'a> {
                         _ => panic!("unexpected: type {:?} in getlocal at offset: {} \n {:#?}", node.type_, i, trace),
                     }
                 },
-                OpCode::Yarv(YarvOpCode::setlocal_WC_0) => {
+                OpCode::Yarv(vm::OpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     let ssa_ref = node.ssa_operands[0];
 
@@ -115,21 +115,21 @@ impl <'a> TraceCompiler<'a> {
                         _ => panic!("unexpect type {:?} in setlocal\n {:#?} ", trace[ssa_ref].type_, trace),
                     };
                 },
-                OpCode::Yarv(YarvOpCode::putstring) => {
+                OpCode::Yarv(vm::OpCode::putstring) => {
                     let unboxed = node.operands[0];
                     stack.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
-                OpCode::Yarv(YarvOpCode::putobject) => {
+                OpCode::Yarv(vm::OpCode::putobject) => {
                     let unboxed = node.operands[0] >> 1;
                     stack.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
-                OpCode::Yarv(YarvOpCode::opt_lt) => {
+                OpCode::Yarv(vm::OpCode::opt_lt) => {
                     let b = stack.pop().expect("stack underflow in opt_lt");
                     let a = stack.pop().expect("stack underflow in opt_lt");
                     let result = self.builder.ins().icmp(IntCC::SignedLessThan, a, b);
                     stack.push(result);
                 },
-                OpCode::Yarv(YarvOpCode::opt_eq) => {
+                OpCode::Yarv(vm::OpCode::opt_eq) => {
                     let b = stack.pop().expect("stack underflow in opt_eq");
                     let a = stack.pop().expect("stack underflow in opt_eq");
                     let result = self.builder.ins().icmp(IntCC::Equal, a, b);
@@ -162,7 +162,7 @@ impl <'a> TraceCompiler<'a> {
                     };
                 },
                 OpCode::Loop => { self.builder.ins().jump(original_loop_block, &[]); } ,
-                OpCode::Yarv(YarvOpCode::duparray) => {
+                OpCode::Yarv(vm::OpCode::duparray) => {
                     let array = node.operands[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_resurrect") {
@@ -175,8 +175,8 @@ impl <'a> TraceCompiler<'a> {
                     }
 
                 },
-                OpCode::Yarv(YarvOpCode::opt_send_without_block) => {
-                    let call_cache = VmCallCache::new(node.operands[1] as *const _);
+                OpCode::Yarv(vm::OpCode::opt_send_without_block) => {
+                    let call_cache = CallCache::new(node.operands[1] as *const _);
                     let func = call_cache.get_func() as *const u64;
                     let func = self.builder.ins().iconst(I64, func as i64);
                     let receiver = stack.pop().expect("stack underflow in send");
@@ -192,7 +192,7 @@ impl <'a> TraceCompiler<'a> {
                     let result = self.builder.inst_results(call)[0];
                     stack.push(result);
                 },
-                OpCode::Yarv(YarvOpCode::opt_empty_p) => {
+                OpCode::Yarv(vm::OpCode::opt_empty_p) => {
                     let receiver = stack.pop().expect("stack underflow in send");
 
                     if let Some(Func(id)) = self.module.get_name("_rb_str_strlen") {
@@ -206,15 +206,15 @@ impl <'a> TraceCompiler<'a> {
                     }
 
                 },
-                OpCode::Yarv(YarvOpCode::pop) => {
+                OpCode::Yarv(vm::OpCode::pop) => {
                     stack.pop().expect("stack underflow in pop");
                 },
-                OpCode::Yarv(YarvOpCode::dup) => {
+                OpCode::Yarv(vm::OpCode::dup) => {
                     let val = stack.pop().expect("stack underflow in dup");
                     stack.push(val);
                     stack.push(val);
                 },
-                OpCode::Yarv(YarvOpCode::opt_not) => {
+                OpCode::Yarv(vm::OpCode::opt_not) => {
                     let ssa_ref = node.ssa_operands[0];
 
                     match trace[ssa_ref].type_ {

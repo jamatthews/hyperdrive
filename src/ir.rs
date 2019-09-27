@@ -1,6 +1,7 @@
-use yarv_types::ValueType;
-use yarv_opcode::YarvOpCode;
 use hyperdrive_ruby::VALUE;
+
+use vm;
+use vm::*;
 
 pub type SsaRef = usize;
 
@@ -28,7 +29,7 @@ pub enum InternalType {
 
 #[derive(Clone, Debug)]
 pub enum OpCode {
-    Yarv(YarvOpCode),
+    Yarv(vm::OpCode),
     Snapshot(u64),
     Guard(IrType),
     Loop,

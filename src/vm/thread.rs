@@ -1,11 +1,11 @@
-use hyperdrive_ruby::VALUE;
 use hyperdrive_ruby::rb_thread_t;
+use hyperdrive_ruby::VALUE;
 
-pub struct VmThread {
+pub struct Thread {
     thread: *const rb_thread_t,
 }
 
-impl VmThread {
+impl Thread {
     pub fn new(thread: *const rb_thread_t) -> Self {
         Self {
             thread: thread,

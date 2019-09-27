@@ -1,14 +1,12 @@
+use hyperdrive_ruby::rb_call_cache;
 use hyperdrive_ruby::rb_method_type_t;
 use hyperdrive_ruby::VALUE;
-use hyperdrive_ruby::rb_call_cache;
 
-
-
-pub struct VmCallCache {
-    pub cc: *const rb_call_cache,
+pub struct CallCache {
+    cc: *const rb_call_cache,
 }
 
-impl VmCallCache {
+impl CallCache {
     pub fn new(cc: *const rb_call_cache) -> Self {
         Self {
             cc: cc,

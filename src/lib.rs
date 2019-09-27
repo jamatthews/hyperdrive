@@ -13,11 +13,7 @@ mod ir;
 mod trace;
 mod trace_compiler;
 mod trace_recorder;
-mod yarv_instruction;
-mod yarv_opcode;
-mod yarv_types;
-mod vm_call_cache;
-mod vm_thread;
+mod vm;
 
 use cranelift::prelude::*;
 use cranelift_codegen::isa::CallConv;
@@ -33,7 +29,7 @@ use hyperdrive_ruby::*;
 pub use capi::*;
 pub use trace::Trace;
 pub use trace_recorder::TraceRecorder;
-use vm_thread::VmThread;
+use vm::*;
 use ir::OpCode;
 
 
@@ -82,7 +78,7 @@ pub enum Mode {
     Executing,
 }
 
-fn trace_dispatch(thread: VmThread) {
+fn trace_dispatch(thread: Thread) {
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Normal => {
@@ -107,7 +103,7 @@ fn trace_dispatch(thread: VmThread) {
     }
 }
 
-fn trace_record_instruction(thread: VmThread){
+fn trace_record_instruction(thread: Thread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Recording(recorder) => {

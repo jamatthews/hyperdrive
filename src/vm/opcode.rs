@@ -7,7 +7,7 @@ use hyperdrive_ruby::VALUE;
 #[allow(non_camel_case_types)]
 #[repr(i32)]
 #[derive(Clone, Debug)]
-pub enum YarvOpCode {
+pub enum OpCode {
     nop,
     getlocal,
     setlocal,
@@ -216,8 +216,8 @@ pub enum YarvOpCode {
     trace_putobject_INT2FIX_1_,
 }
 
-impl From<*const VALUE> for YarvOpCode{
-    fn from(program_counter: *const VALUE) -> YarvOpCode {
+impl From<*const VALUE> for OpCode{
+    fn from(program_counter: *const VALUE) -> OpCode {
         let raw_opcode: i32 = unsafe { rb_vm_insn_addr2insn(*program_counter as *const _) };
          unsafe { std::mem::transmute(raw_opcode) }
     }
