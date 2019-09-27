@@ -10,9 +10,9 @@ extern crate hyperdrive_ruby;
 #[cfg(cargo_c)]
 mod capi;
 mod ir;
+mod recorder;
 mod trace;
 mod trace_compiler;
-mod trace_recorder;
 mod vm;
 
 use cranelift::prelude::*;
@@ -27,10 +27,10 @@ use hyperdrive_ruby::*;
 
 #[cfg(cargo_c)]
 pub use capi::*;
-pub use trace::Trace;
-pub use trace_recorder::TraceRecorder;
-use vm::*;
 use ir::OpCode;
+pub use recorder::*;
+pub use trace::*;
+pub use vm::*;
 
 
 lazy_static! {
@@ -74,7 +74,7 @@ unsafe impl Send for Hyperdrive {}
 
 pub enum Mode {
     Normal,
-    Recording(TraceRecorder),
+    Recording(Recorder),
     Executing,
 }
 
@@ -95,7 +95,7 @@ fn trace_dispatch(thread: Thread) {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
-                    hyperdrive.mode = Mode::Recording(TraceRecorder::new(pc));
+                    hyperdrive.mode = Mode::Recording(Recorder::new(pc));
                 }
             }
         },
