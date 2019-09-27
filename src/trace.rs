@@ -7,7 +7,7 @@ use cranelift_codegen::isa::CallConv;
 use cranelift_module::*;
 use cranelift_simplejit::*;
 
-use trace_compiler::TraceCompiler;
+use compiler::Compiler;
 
 
 pub type IrNodes = Vec<IrNode>;
@@ -40,7 +40,7 @@ impl Trace {
         {
             let mut builder_context = FunctionBuilderContext::new();
             let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
-            let mut compiler = TraceCompiler::new(module, builder);
+            let mut compiler = Compiler::new(module, builder);
             compiler.compile(self.nodes.clone());
         }
 
@@ -64,7 +64,7 @@ impl Trace {
 
         let mut builder_context = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
-        let mut compiler = TraceCompiler::new(module, builder);
+        let mut compiler = Compiler::new(module, builder);
         compiler.compile(self.nodes.clone());
         compiler.preview().unwrap()
     }

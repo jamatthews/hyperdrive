@@ -9,10 +9,10 @@ extern crate hyperdrive_ruby;
 
 #[cfg(cargo_c)]
 mod capi;
+mod compiler;
 mod ir;
 mod recorder;
 mod trace;
-mod trace_compiler;
 mod vm;
 
 use cranelift::prelude::*;

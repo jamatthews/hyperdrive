@@ -34,12 +34,12 @@ macro_rules! i64_2_value {
     }}
 }
 
-pub struct TraceCompiler<'a> {
+pub struct Compiler<'a> {
     module: &'a mut Module<SimpleJITBackend>,
     builder: FunctionBuilder<'a>
 }
 
-impl <'a> TraceCompiler<'a> {
+impl <'a> Compiler<'a> {
 
     pub fn new(module: &'a mut Module<SimpleJITBackend>, builder: FunctionBuilder<'a>) -> Self {
         Self {
