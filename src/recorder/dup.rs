@@ -7,7 +7,7 @@ pub fn record(nodes: &mut IrNodes, ssa_stack: &mut Vec<SsaRef>, instruction: Ins
             type_: nodes[popped].type_.clone(),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],
-            ssa_operands: vec![],
+            ssa_operands: vec![popped],
         }
     );
     ssa_stack.push(nodes.len() - 1);

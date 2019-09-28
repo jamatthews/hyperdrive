@@ -58,22 +58,22 @@ impl <'a> Compiler<'a> {
         self.builder.ins().jump(loop_block, &[]);
         self.builder.switch_to_block(loop_block);
 
-        let mut stack = vec![];
+        let mut ssa_values = vec![];
         for (i, node) in trace.iter().enumerate() {
             match &node.opcode {
                 OpCode::Yarv(vm::OpCode::putnil) => {
-                    stack.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
+                    ssa_values.push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
                 },
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => {
-                    stack.push(self.builder.ins().iconst(I64, 1 as i64));
+                    ssa_values.push(self.builder.ins().iconst(I64, 1 as i64));
                 },
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => {
-                    stack.push(self.builder.ins().iconst(I64, 0 as i64));
+                    ssa_values.push(self.builder.ins().iconst(I64, 0 as i64));
                 },
                 OpCode::Yarv(vm::OpCode::opt_plus) => {
-                    let b = stack.pop().expect("stack underflow in opt_plus");
-                    let a = stack.pop().expect("stack underflow in opt_plus");
-                    stack.push(self.builder.ins().iadd(a, b));
+                    let a = ssa_values[node.ssa_operands[0]];
+                    let b = ssa_values[node.ssa_operands[1]];
+                    ssa_values.push(self.builder.ins().iadd(a, b));
                 },
                 OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
@@ -82,11 +82,11 @@ impl <'a> Compiler<'a> {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             let builder = &mut self.builder;
                             let unboxed = value_2_i64!(boxed, builder);
-                            stack.push(unboxed);
+                            ssa_values.push(unboxed);
                         },
                         IrType::Yarv(ValueType::Array)|IrType::Yarv(ValueType::True) => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                            stack.push(boxed);
+                            ssa_values.push(boxed);
                         },
                         _ => panic!("unexpected: type {:?} in getlocal at offset: {} \n {:#?}", node.type_, i, trace),
                     }
@@ -97,46 +97,47 @@ impl <'a> Compiler<'a> {
 
                     match trace[ssa_ref].type_ {
                         IrType::Internal(InternalType::I64) => {
-                            let unboxed = stack.pop().expect("stack underflow in setlocal");
+                            let unboxed = ssa_values[ssa_ref];
                             let builder = &mut self.builder;
                             let rvalue = i64_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
                         IrType::Yarv(ValueType::Array)|IrType::Internal(InternalType::Value) => {
-                            let rvalue = stack.pop().expect("stack underflow in setlocal");
+                            let rvalue = ssa_values[ssa_ref];
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
                         IrType::Internal(InternalType::Bool) => {
-                            let unboxed = stack.pop().expect("stack underflow in setlocal");
+                            let unboxed = ssa_values[ssa_ref];
                             let builder = &mut self.builder;
                             let rvalue = b1_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         }
                         _ => panic!("unexpect type {:?} in setlocal\n {:#?} ", trace[ssa_ref].type_, trace),
                     };
+                    ssa_values.push(ssa_values[ssa_ref]);
                 },
                 OpCode::Yarv(vm::OpCode::putstring) => {
                     let unboxed = node.operands[0];
-                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
+                    ssa_values.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
                 OpCode::Yarv(vm::OpCode::putobject) => {
                     let unboxed = node.operands[0] >> 1;
-                    stack.push(self.builder.ins().iconst(I64, unboxed as i64));
+                    ssa_values.push(self.builder.ins().iconst(I64, unboxed as i64));
                 },
                 OpCode::Yarv(vm::OpCode::opt_lt) => {
-                    let b = stack.pop().expect("stack underflow in opt_lt");
-                    let a = stack.pop().expect("stack underflow in opt_lt");
+                    let a = ssa_values[node.ssa_operands[0]];
+                    let b = ssa_values[node.ssa_operands[1]];
                     let result = self.builder.ins().icmp(IntCC::SignedLessThan, a, b);
-                    stack.push(result);
+                    ssa_values.push(result);
                 },
                 OpCode::Yarv(vm::OpCode::opt_eq) => {
-                    let b = stack.pop().expect("stack underflow in opt_eq");
-                    let a = stack.pop().expect("stack underflow in opt_eq");
+                    let a = ssa_values[node.ssa_operands[0]];
+                    let b = ssa_values[node.ssa_operands[1]];
                     let result = self.builder.ins().icmp(IntCC::Equal, a, b);
-                    stack.push(result);
+                    ssa_values.push(result);
                 },
                 OpCode::Guard(IrType::Yarv(type_)) => {
-                    let value = stack.pop().expect("stack underflow in guard");
+                    let value = ssa_values[node.ssa_operands[0]];
                     let ssa_ref = node.ssa_operands[0];
 
                     match type_ {
@@ -160,6 +161,7 @@ impl <'a> Compiler<'a> {
                         },
                         _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace[ssa_ref].type_, trace),
                     };
+                    ssa_values.push(ssa_values[ssa_ref]);
                 },
                 OpCode::Loop => { self.builder.ins().jump(original_loop_block, &[]); } ,
                 OpCode::Yarv(vm::OpCode::duparray) => {
@@ -169,7 +171,7 @@ impl <'a> Compiler<'a> {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
                         let call = self.builder.ins().call(func_ref, &[array]);
                         let result = self.builder.inst_results(call)[0];
-                        stack.push(result);
+                        ssa_values.push(result);
                     } else {
                         panic!("function not found!");
                     }
@@ -179,7 +181,7 @@ impl <'a> Compiler<'a> {
                     let call_cache = CallCache::new(node.operands[1] as *const _);
                     let func = call_cache.get_func() as *const u64;
                     let func = self.builder.ins().iconst(I64, func as i64);
-                    let receiver = stack.pop().expect("stack underflow in send");
+                    let receiver = ssa_values[node.ssa_operands[0]];
 
                     let sig = Signature {
                         params: vec![AbiParam::new(I64)],
@@ -190,62 +192,55 @@ impl <'a> Compiler<'a> {
 
                     let call = self.builder.ins().call_indirect(sig, func, &[receiver]);
                     let result = self.builder.inst_results(call)[0];
-                    stack.push(result);
+                    ssa_values.push(result);
                 },
                 OpCode::Yarv(vm::OpCode::opt_empty_p) => {
-                    let receiver = stack.pop().expect("stack underflow in send");
+                    let receiver = ssa_values[node.ssa_operands[0]];
 
                     if let Some(Func(id)) = self.module.get_name("_rb_str_strlen") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
                         let call = self.builder.ins().call(func_ref, &[receiver]);
                         let count = self.builder.inst_results(call)[0];
                         let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
-                        stack.push(result);
+                        ssa_values.push(result);
                     } else {
                         panic!("function not found!");
                     }
 
                 },
-                OpCode::Yarv(vm::OpCode::pop) => {
-                    stack.pop().expect("stack underflow in pop");
-                },
-                OpCode::Yarv(vm::OpCode::dup) => {
-                    let val = stack.pop().expect("stack underflow in dup");
-                    stack.push(val);
-                    stack.push(val);
-                },
+                OpCode::Yarv(vm::OpCode::pop) => { ssa_values.push(ssa_values[node.ssa_operands[0]]) },
+                OpCode::Yarv(vm::OpCode::dup) => { ssa_values.push(ssa_values[node.ssa_operands[0]]) },
                 OpCode::Yarv(vm::OpCode::opt_not) => {
                     let ssa_ref = node.ssa_operands[0];
+                    let val = ssa_values[ssa_ref];
 
                     match trace[ssa_ref].type_ {
                         IrType::Internal(InternalType::Bool) => {
-                            let val = stack.pop().expect("stack underflow in opt_not");
                             let result = self.builder.ins().bnot(val);
-                            stack.push(result);
+                            ssa_values.push(result);
                         },
                         IrType::Internal(InternalType::Value) => {
-                            let val = stack.pop().expect("stack underflow in opt_not");
                             let result = self.builder.ins().icmp_imm(IntCC::Equal, val, 0);
-                            stack.push(result);
+                            ssa_values.push(result);
                         }
                         _ => panic!("unexpect type {:?} in opt_not\n {:#?} ", trace[ssa_ref].type_, trace),
                     };
 
                 },
                 OpCode::ArrayAppend => {
-                    let object = stack.pop().expect("stack underflow in array_append");
-                    let array = stack.pop().expect("stack underflow in array_append");
+                    let array = ssa_values[node.ssa_operands[0]];
+                    let object = ssa_values[node.ssa_operands[1]];
 
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_push") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
                         let call = self.builder.ins().call(func_ref, &[array, object]);
                         let result = self.builder.inst_results(call)[0];
-                        stack.push(result);
+                        ssa_values.push(result);
                     } else {
                         panic!("function not found!");
                     }
                 }
-                Snapshot(_) => {},
+                Snapshot(_) => { ssa_values.push(self.builder.ins().iconst(I64, 0 as i64)) },
                 _ => panic!("NYI: {:?}", node.opcode),
             };
         };
