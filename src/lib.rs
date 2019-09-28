@@ -57,7 +57,7 @@ lazy_static! {
         module.declare_function("_rb_ary_push", Linkage::Import, &sig2).unwrap();
 
         Mutex::new(
-            Hyperdrive { mode: Mode::Normal, counters: HashMap::new(), trace_heads: HashMap::new(), module: module  }
+            Hyperdrive { mode: Mode::Normal, counters: HashMap::new(), failures: HashMap::new(), trace_heads: HashMap::new(), module: module  }
         )
     };
 }
@@ -96,7 +96,10 @@ fn trace_dispatch(thread: Thread) {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
-                    hyperdrive.mode = Mode::Recording(Recorder::new(pc));
+                    let failures = hyperdrive.failures.get(&pc).unwrap_or(&0);
+                    if *failures < 5 {
+                        hyperdrive.mode = Mode::Recording(Recorder::new(pc));
+                    }
                 }
             }
         },
@@ -115,7 +118,9 @@ fn trace_record_instruction(thread: Thread){
                     hyperdrive.trace_heads.insert(trace.anchor, trace);
                     hyperdrive.mode = Mode::Normal;
                 },
-                Err(err) => {
+                Err(_) => {
+                    let pc = recorder.anchor.clone();
+                    *hyperdrive.failures.entry(pc).or_insert(0) += 1;
                     hyperdrive.mode = Mode::Normal;
                 },
                 _ => {},
