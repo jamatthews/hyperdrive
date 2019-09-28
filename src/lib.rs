@@ -66,6 +66,7 @@ lazy_static! {
 struct Hyperdrive {
     pub mode: Mode,
     pub counters: HashMap<u64,u64>,
+    pub failures: HashMap<u64,u64>,
     pub trace_heads: HashMap<u64,Trace>,
     pub module: Module<SimpleJITBackend>,
 }
@@ -107,13 +108,19 @@ fn trace_record_instruction(thread: Thread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Recording(recorder) => {
-            recorder.record_instruction(thread);
-            if recorder.complete {
-                let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
-                trace.compile(&mut hyperdrive.module);
-                hyperdrive.trace_heads.insert(trace.anchor, trace);
-                hyperdrive.mode = Mode::Normal;
+            match recorder.record_instruction(thread){
+                Ok(true) => {
+                    let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
+                    trace.compile(&mut hyperdrive.module);
+                    hyperdrive.trace_heads.insert(trace.anchor, trace);
+                    hyperdrive.mode = Mode::Normal;
+                },
+                Err(err) => {
+                    hyperdrive.mode = Mode::Normal;
+                },
+                _ => {},
             }
+
         },
         _ => panic!("tried to record instruction while not recording trace")
     };

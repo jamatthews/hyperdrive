@@ -29,7 +29,6 @@ pub struct Recorder {
     pub nodes: IrNodes,
     stack: Vec<SsaRef>,
     pub anchor: u64,
-    pub complete: bool,
 }
 
 impl Recorder {
@@ -38,11 +37,10 @@ impl Recorder {
             nodes: vec![],
             stack: vec![],
             anchor: anchor,
-            complete: false,
         }
     }
 
-    pub fn record_instruction(&mut self, thread: Thread) {
+    pub fn record_instruction(&mut self, thread: Thread) -> Result<bool,String> {
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
@@ -55,8 +53,7 @@ impl Recorder {
                     ssa_operands: vec![],
                 }
             );
-            self.complete = true;
-            return
+            return Ok(true)
         }
 
         match opcode {
@@ -79,7 +76,9 @@ impl Recorder {
             OpCode::putstring => { putstring::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::setlocal_WC_0 => { setlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putself|OpCode::leave => {},
-            _ => panic!("Recording NYI: {:?}", opcode),
+            _ => { return Err(format!("NYI: {:?}", opcode)) },
         }
+
+        Ok(false)
     }
 }
