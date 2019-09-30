@@ -33,4 +33,5 @@ pub enum OpCode {
     Guard(IrType),
     Loop,
     ArrayAppend,
+    NewArray,
 }

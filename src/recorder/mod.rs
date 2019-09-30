@@ -2,6 +2,7 @@ mod branch;
 mod dup;
 mod duparray;
 mod getlocal_wc_0;
+mod newarray;
 mod opt_aref;
 mod opt_eq;
 mod opt_empty_p;
@@ -61,6 +62,7 @@ impl Recorder {
             OpCode::dup => { dup::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::duparray => { duparray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::getlocal_WC_0 => { getlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::newarray => { newarray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_aref => { opt_aref::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_eq => { opt_eq::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_empty_p => { opt_empty_p::record(&mut self.nodes, &mut self.stack, instruction, thread) },

@@ -18,7 +18,7 @@ pub fn record(nodes: &mut IrNodes, ssa_stack: &mut Vec<SsaRef>, instruction: Ins
                 type_: IrType::Yarv(ValueType::Array),
                 opcode: ir::OpCode::ArrayAppend,
                 operands: vec![],
-                ssa_operands: vec![object, array],
+                ssa_operands: vec![array, object],
             }
         );
     }

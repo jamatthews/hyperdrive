@@ -84,7 +84,9 @@ impl <'a> Compiler<'a> {
                             let unboxed = value_2_i64!(boxed, builder);
                             ssa_values.push(unboxed);
                         },
-                        IrType::Yarv(ValueType::Array)|IrType::Yarv(ValueType::True) => {
+                        IrType::Yarv(ValueType::Array)|
+                            IrType::Yarv(ValueType::True)|
+                            IrType::Yarv(ValueType::RString) => {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             ssa_values.push(boxed);
                         },
@@ -229,11 +231,32 @@ impl <'a> Compiler<'a> {
                 },
                 OpCode::ArrayAppend => {
                     let array = ssa_values[node.ssa_operands[0]];
-                    let object = ssa_values[node.ssa_operands[1]];
+                    let unboxed_object = ssa_values[node.ssa_operands[1]];
+
+                    let boxed_object = match trace[node.ssa_operands[1]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(unboxed_object, builder)
+                        },
+                        IrType::Yarv(ValueType::Fixnum)|IrType::Yarv(ValueType::RString) => {
+                            unboxed_object
+                        },
+                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                    };
 
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_push") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[array, object]);
+                        let call = self.builder.ins().call(func_ref, &[array, boxed_object]);
+                        let result = self.builder.inst_results(call)[0];
+                        ssa_values.push(result);
+                    } else {
+                        panic!("function not found!");
+                    }
+                },
+                OpCode::NewArray => {
+                    if let Some(Func(id)) = self.module.get_name("_rb_ary_new") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        let call = self.builder.ins().call(func_ref, &[]);
                         let result = self.builder.inst_results(call)[0];
                         ssa_values.push(result);
                     } else {
