@@ -28,4 +28,18 @@ class ArrayTest < Minitest::Test
     assert_equal ['element'], x
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
+
+  def test_reference
+    trace_count = Hyperdrive.trace_count
+    a = [1,2,3]
+    x = nil
+    i = 0
+    while i < 2000
+      x = a[2]
+      i = i + 1
+    end
+    assert_equal 2000, i
+    assert_equal 3, x
+    assert_equal Hyperdrive.trace_count, trace_count + 1
+  end
 end

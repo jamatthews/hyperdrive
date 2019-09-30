@@ -56,11 +56,13 @@ lazy_static! {
         simplejit.symbol("_rb_str_strlen", rb_str_strlen as *const u8);
         simplejit.symbol("_rb_ary_push", rb_ary_push as *const u8);
         simplejit.symbol("_rb_ary_new", rb_ary_new as *const u8);
+        simplejit.symbol("_rb_ary_aref1", rb_ary_aref1 as *const u8);
         let mut module = Module::new(simplejit);
         module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
         module.declare_function("_rb_str_strlen", Linkage::Import, &sig).unwrap();
         module.declare_function("_rb_ary_push", Linkage::Import, &sig2).unwrap();
         module.declare_function("_rb_ary_new", Linkage::Import, &sig3).unwrap();
+        module.declare_function("_rb_ary_aref1", Linkage::Import, &sig2).unwrap();
 
         Mutex::new(
             Hyperdrive { mode: Mode::Normal, counters: HashMap::new(), failures: HashMap::new(), trace_heads: HashMap::new(), module: module  }
