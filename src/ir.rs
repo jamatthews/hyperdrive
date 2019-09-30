@@ -36,6 +36,5 @@ pub enum OpCode {
     ArrayRef,
     NewArray,
     NewHash,
-    HashRef,
     HashSet,
 }

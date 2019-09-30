@@ -4,6 +4,7 @@ mod duparray;
 mod getlocal_wc_0;
 mod newarray;
 mod opt_aref;
+mod opt_aset;
 mod opt_eq;
 mod opt_empty_p;
 mod opt_lt;
@@ -14,6 +15,7 @@ mod opt_send_without_block;
 mod pop;
 mod putnil;
 mod putobject;
+mod putobject_int2fix_0_;
 mod putobject_int2fix_1_;
 mod putstring;
 mod setlocal_wc_0;
@@ -64,6 +66,7 @@ impl Recorder {
             OpCode::getlocal_WC_0 => { getlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::newarray => { newarray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_aref => { opt_aref::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::opt_aset => { opt_aset::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_eq => { opt_eq::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_empty_p => { opt_empty_p::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_lt => { opt_lt::record(&mut self.nodes, &mut self.stack, instruction, thread) },
@@ -73,6 +76,7 @@ impl Recorder {
             OpCode::opt_send_without_block => { opt_send_without_block::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::pop => { pop::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putobject => { putobject::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::putobject_INT2FIX_0_ => { putobject_int2fix_0_::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putobject_INT2FIX_1_ => { putobject_int2fix_1_::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putnil => { putnil::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putstring => { putstring::record(&mut self.nodes, &mut self.stack, instruction, thread) },

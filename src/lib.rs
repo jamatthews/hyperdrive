@@ -50,6 +50,11 @@ lazy_static! {
             returns: vec![AbiParam::new(I64)],
             call_conv: CallConv::SystemV,
         };
+        let sig4 = Signature {
+            params: vec![AbiParam::new(I64), AbiParam::new(I64), AbiParam::new(I64)],
+            returns: vec![AbiParam::new(I64)],
+            call_conv: CallConv::SystemV,
+        };
 
         let mut simplejit = SimpleJITBuilder::new(cranelift_module::default_libcall_names());
         simplejit.symbol("_rb_ary_resurrect", rb_ary_resurrect as *const u8);
@@ -57,12 +62,14 @@ lazy_static! {
         simplejit.symbol("_rb_ary_push", rb_ary_push as *const u8);
         simplejit.symbol("_rb_ary_new", rb_ary_new as *const u8);
         simplejit.symbol("_rb_ary_aref1", rb_ary_aref1 as *const u8);
+        simplejit.symbol("_rb_ary_store", rb_ary_store as *const u8);
         let mut module = Module::new(simplejit);
         module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
         module.declare_function("_rb_str_strlen", Linkage::Import, &sig).unwrap();
         module.declare_function("_rb_ary_push", Linkage::Import, &sig2).unwrap();
         module.declare_function("_rb_ary_new", Linkage::Import, &sig3).unwrap();
         module.declare_function("_rb_ary_aref1", Linkage::Import, &sig2).unwrap();
+        module.declare_function("_rb_ary_store", Linkage::Import, &sig4).unwrap();
 
         Mutex::new(
             Hyperdrive { mode: Mode::Normal, counters: HashMap::new(), failures: HashMap::new(), trace_heads: HashMap::new(), module: module  }
@@ -119,14 +126,15 @@ fn trace_record_instruction(thread: Thread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Recording(recorder) => {
-            match recorder.record_instruction(thread){
+            match recorder.record_instruction(thread) {
                 Ok(true) => {
                     let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
                     trace.compile(&mut hyperdrive.module);
                     hyperdrive.trace_heads.insert(trace.anchor, trace);
                     hyperdrive.mode = Mode::Normal;
                 },
-                Err(_) => {
+                Err(err) => {
+                    println!("Trace Recording Aborted: {}", err);
                     let pc = recorder.anchor.clone();
                     *hyperdrive.failures.entry(pc).or_insert(0) += 1;
                     hyperdrive.mode = Mode::Normal;

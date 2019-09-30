@@ -287,6 +287,42 @@ impl <'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 },
+                OpCode::Yarv(vm::OpCode::opt_aset) => {
+                    let array = ssa_values[node.ssa_operands[0]];
+                    let key = ssa_values[node.ssa_operands[1]];
+                    let value = ssa_values[node.ssa_operands[2]];
+
+                    let boxed_key = match trace[node.ssa_operands[1]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(key, builder)
+                        },
+                        IrType::Yarv(ValueType::Fixnum) => {
+                            key
+                        },
+                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                    };
+
+                    let boxed_value = match trace[node.ssa_operands[1]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(value, builder)
+                        },
+                        IrType::Yarv(ValueType::Fixnum) => {
+                            value
+                        },
+                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                    };
+
+                    if let Some(Func(id)) = self.module.get_name("_rb_ary_store") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        let call = self.builder.ins().call(func_ref, &[array, boxed_key, boxed_value]);
+                        let result = self.builder.inst_results(call)[0];
+                        ssa_values.push(result);
+                    } else {
+                        panic!("function not found!");
+                    }
+                },
                 OpCode::NewHash => {
                     if let Some(Func(id)) = self.module.get_name("_rb_hash_new") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
@@ -297,14 +333,10 @@ impl <'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 },
-                OpCode::HashRef => {
-                    ssa_values.push(ssa_values[node.ssa_operands[0]]);
-                },
                 OpCode::HashSet => {
-                    let hashref = trace[node.ssa_operands[0]].clone();
-                    let hash = ssa_values[hashref.ssa_operands[0]];
-                    let key = ssa_values[hashref.ssa_operands[1]];
-                    let value = ssa_values[node.ssa_operands[1]];
+                    let hash = ssa_values[node.ssa_operands[0]];
+                    let key = ssa_values[node.ssa_operands[1]];
+                    let value = ssa_values[node.ssa_operands[2]];
 
                     if let Some(Func(id)) = self.module.get_name("_rb_hash_aset") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
