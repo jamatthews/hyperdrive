@@ -12,7 +12,6 @@ pub fn record(nodes: &mut IrNodes, ssa_stack: &mut Vec<SsaRef>, instruction: Ins
     let hash = nodes.len() - 1;
     let count = instruction.get_operand(0);
     for _ in 0..(count/2) {
-        println!("recording one hash key add");
         let value = ssa_stack.pop().expect("stack underflow recording newhash");
         let key = ssa_stack.pop().expect("stack underflow recording newhash");
         nodes.push(

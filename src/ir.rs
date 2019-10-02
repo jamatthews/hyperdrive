@@ -33,9 +33,10 @@ pub enum OpCode {
     Guard(IrType),
     Loop,
     ArrayAppend,
-    ArrayRef,
+    ArrayGet,
     NewArray,
     ArraySet,
     NewHash,
     HashSet,
+    HashGet,
 }

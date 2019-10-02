@@ -261,7 +261,7 @@ impl <'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 },
-                OpCode::ArrayRef => {
+                OpCode::ArrayGet => {
                     let array = ssa_values[node.ssa_operands[0]];
                     let maybe_unboxed = ssa_values[node.ssa_operands[1]];
 
@@ -363,6 +363,30 @@ impl <'a> Compiler<'a> {
                         let call = self.builder.ins().call(func_ref, &[hash, boxed_key, boxed_value]);
                         let _result = self.builder.inst_results(call)[0];
                         ssa_values.push(hash);
+                    } else {
+                        panic!("function not found!");
+                    }
+                },
+                OpCode::HashGet => {
+                    let hash = ssa_values[node.ssa_operands[0]];
+                    let maybe_unboxed = ssa_values[node.ssa_operands[1]];
+
+                    let boxed_object = match trace[node.ssa_operands[1]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(maybe_unboxed, builder)
+                        },
+                        IrType::Yarv(_) => {
+                            maybe_unboxed
+                        },
+                        _ => panic!("unexpected type in HashGet: {:#?}", trace[node.ssa_operands[1]].type_),
+                    };
+
+                    if let Some(Func(id)) = self.module.get_name("_rb_hash_aref") {
+                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+                        let call = self.builder.ins().call(func_ref, &[hash, boxed_object]);
+                        let result = self.builder.inst_results(call)[0];
+                        ssa_values.push(result);
                     } else {
                         panic!("function not found!");
                     }
