@@ -3,6 +3,7 @@ mod dup;
 mod duparray;
 mod getlocal_wc_0;
 mod newarray;
+mod newhash;
 mod opt_aref;
 mod opt_aset;
 mod opt_eq;
@@ -65,6 +66,7 @@ impl Recorder {
             OpCode::duparray => { duparray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::getlocal_WC_0 => { getlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::newarray => { newarray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::newhash => { newhash::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_aref => { opt_aref::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_aset => { opt_aset::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::opt_eq => { opt_eq::record(&mut self.nodes, &mut self.stack, instruction, thread) },

@@ -35,6 +35,7 @@ pub enum OpCode {
     ArrayAppend,
     ArrayRef,
     NewArray,
+    ArraySet,
     NewHash,
     HashSet,
 }

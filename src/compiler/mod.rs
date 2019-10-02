@@ -84,9 +84,7 @@ impl <'a> Compiler<'a> {
                             let unboxed = value_2_i64!(boxed, builder);
                             ssa_values.push(unboxed);
                         },
-                        IrType::Yarv(ValueType::Array)|
-                            IrType::Yarv(ValueType::True)|
-                            IrType::Yarv(ValueType::RString) => {
+                        IrType::Yarv(_)=> {
                             let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
                             ssa_values.push(boxed);
                         },
@@ -104,7 +102,7 @@ impl <'a> Compiler<'a> {
                             let rvalue = i64_2_value!(unboxed, builder);
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
-                        IrType::Yarv(ValueType::Array)|IrType::Internal(InternalType::Value) => {
+                        IrType::Yarv(_)|IrType::Internal(InternalType::Value) => {
                             let rvalue = ssa_values[ssa_ref];
                             self.builder.ins().store(MemFlags::new(), rvalue, ep,  offset);
                         },
@@ -241,7 +239,7 @@ impl <'a> Compiler<'a> {
                         IrType::Yarv(ValueType::Fixnum)|IrType::Yarv(ValueType::RString) => {
                             unboxed_object
                         },
-                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                        _ => panic!("unexpected type in ArrayAppend: {:#?} \n {:#?}", trace[node.ssa_operands[1]].type_, trace),
                     };
 
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_push") {
@@ -275,7 +273,7 @@ impl <'a> Compiler<'a> {
                         IrType::Yarv(ValueType::Fixnum) => {
                             maybe_unboxed
                         },
-                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                        _ => panic!("unexpected type in ArrayReference: {:#?}", trace[node.ssa_operands[1]].type_),
                     };
 
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_aref1") {
@@ -287,7 +285,7 @@ impl <'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 },
-                OpCode::Yarv(vm::OpCode::opt_aset) => {
+                OpCode::ArraySet => {
                     let array = ssa_values[node.ssa_operands[0]];
                     let key = ssa_values[node.ssa_operands[1]];
                     let value = ssa_values[node.ssa_operands[2]];
@@ -297,21 +295,21 @@ impl <'a> Compiler<'a> {
                             let builder = &mut self.builder;
                             i64_2_value!(key, builder)
                         },
-                        IrType::Yarv(ValueType::Fixnum) => {
+                        IrType::Yarv(_) => {
                             key
                         },
-                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                        _ => panic!("unexpect type in ArraySet: {:#?}", trace[node.ssa_operands[1]].type_),
                     };
 
-                    let boxed_value = match trace[node.ssa_operands[1]].type_ {
+                    let boxed_value = match trace[node.ssa_operands[2]].type_ {
                         IrType::Internal(InternalType::I64) => {
                             let builder = &mut self.builder;
                             i64_2_value!(value, builder)
                         },
-                        IrType::Yarv(ValueType::Fixnum) => {
+                        IrType::Yarv(_) => {
                             value
                         },
-                        _ => panic!("unexpect type in ArrayAppend: {:#?}", trace[node.ssa_operands[1]].type_),
+                        _ => panic!("unexpect type in ArrayAppend: {:#?} \n {:#?}", trace[node.ssa_operands[2]].type_, trace),
                     };
 
                     if let Some(Func(id)) = self.module.get_name("_rb_ary_store") {
@@ -338,15 +336,37 @@ impl <'a> Compiler<'a> {
                     let key = ssa_values[node.ssa_operands[1]];
                     let value = ssa_values[node.ssa_operands[2]];
 
+                    let boxed_key = match trace[node.ssa_operands[1]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(key, builder)
+                        },
+                        IrType::Yarv(_) => {
+                            key
+                        },
+                        _ => panic!("unexpect key type in HashSet: {:#?} \n {:#?}", trace[node.ssa_operands[1]].type_, trace),
+                    };
+
+                    let boxed_value = match trace[node.ssa_operands[2]].type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            i64_2_value!(value, builder)
+                        },
+                        IrType::Yarv(_) => {
+                            value
+                        },
+                        _ => panic!("unexpect value type in HashSet: {:#?}", trace[node.ssa_operands[2]].type_),
+                    };
+
                     if let Some(Func(id)) = self.module.get_name("_rb_hash_aset") {
                         let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[hash, key, value]);
-                        let result = self.builder.inst_results(call)[0];
-                        ssa_values.push(result);
+                        let call = self.builder.ins().call(func_ref, &[hash, boxed_key, boxed_value]);
+                        let _result = self.builder.inst_results(call)[0];
+                        ssa_values.push(hash);
                     } else {
                         panic!("function not found!");
                     }
-                }
+                },
                 Snapshot(_) => { ssa_values.push(self.builder.ins().iconst(I64, 0 as i64)) },
                 _ => panic!("NYI: {:?}", node.opcode),
             };

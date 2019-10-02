@@ -58,18 +58,23 @@ lazy_static! {
 
         let mut simplejit = SimpleJITBuilder::new(cranelift_module::default_libcall_names());
         simplejit.symbol("_rb_ary_resurrect", rb_ary_resurrect as *const u8);
-        simplejit.symbol("_rb_str_strlen", rb_str_strlen as *const u8);
         simplejit.symbol("_rb_ary_push", rb_ary_push as *const u8);
         simplejit.symbol("_rb_ary_new", rb_ary_new as *const u8);
         simplejit.symbol("_rb_ary_aref1", rb_ary_aref1 as *const u8);
         simplejit.symbol("_rb_ary_store", rb_ary_store as *const u8);
+        simplejit.symbol("_rb_hash_aset", rb_hash_aset as *const u8);
+        simplejit.symbol("_rb_hash_new", rb_hash_new as *const u8);
+        simplejit.symbol("_rb_str_strlen", rb_str_strlen as *const u8);
+
         let mut module = Module::new(simplejit);
         module.declare_function("_rb_ary_resurrect", Linkage::Import, &sig).unwrap();
-        module.declare_function("_rb_str_strlen", Linkage::Import, &sig).unwrap();
         module.declare_function("_rb_ary_push", Linkage::Import, &sig2).unwrap();
         module.declare_function("_rb_ary_new", Linkage::Import, &sig3).unwrap();
         module.declare_function("_rb_ary_aref1", Linkage::Import, &sig2).unwrap();
         module.declare_function("_rb_ary_store", Linkage::Import, &sig4).unwrap();
+        module.declare_function("_rb_hash_aset", Linkage::Import, &sig4).unwrap();
+        module.declare_function("_rb_hash_new", Linkage::Import, &sig3).unwrap();
+        module.declare_function("_rb_str_strlen", Linkage::Import, &sig).unwrap();
 
         Mutex::new(
             Hyperdrive { mode: Mode::Normal, counters: HashMap::new(), failures: HashMap::new(), trace_heads: HashMap::new(), module: module  }
