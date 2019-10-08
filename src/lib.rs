@@ -108,7 +108,7 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let target_pc = match existing_trace.nodes[existing_trace.nodes.len() - 2].opcode {
-                    OpCode::Snapshot(pc) => pc as *const VALUE,
+                    OpCode::Snapshot(pc, _) => pc as *const VALUE,
                     _ => panic!("tried to exit without a snapshot"),
                 };
                 let trace_function = existing_trace.compiled_code.unwrap();
@@ -133,9 +133,9 @@ fn trace_record_instruction(thread: Thread){
     let hyperdrive = &mut HYPERDRIVE.lock().unwrap();
     match &mut hyperdrive.mode {
         Mode::Recording(recorder) => {
-            match recorder.record_instruction(thread) {
+            match recorder.record_instruction(thread.clone()) {
                 Ok(true) => {
-                    let mut trace = Trace::new(recorder.anchor, recorder.nodes.clone());
+                    let mut trace = Trace::new(recorder.nodes.clone(), thread.clone());
                     trace.compile(&mut hyperdrive.module);
                     hyperdrive.trace_heads.insert(trace.anchor, trace);
                     hyperdrive.mode = Mode::Normal;

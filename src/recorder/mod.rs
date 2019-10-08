@@ -18,10 +18,10 @@ mod putnil;
 mod putobject;
 mod putobject_int2fix_0_;
 mod putobject_int2fix_1_;
+mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
-use hyperdrive_ruby::rb_method_type_t_VM_METHOD_TYPE_CFUNC;
 use ir;
 use ir::*;
 use trace::IrNodes;
@@ -83,7 +83,8 @@ impl Recorder {
             OpCode::putnil => { putnil::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putstring => { putstring::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::setlocal_WC_0 => { setlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
-            OpCode::putself|OpCode::leave => {},
+            OpCode::putself => { putself::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::leave => {},
             _ => { return Err(format!("NYI: {:?}", opcode)) },
         }
 

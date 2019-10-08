@@ -7,7 +7,7 @@ pub fn record(nodes: &mut IrNodes, ssa_stack: &mut Vec<SsaRef>, _instruction: In
     let opcode = match nodes[collection].type_.clone() {
         IrType::Yarv(ValueType::Array) => ir::OpCode::ArrayGet,
         IrType::Yarv(ValueType::Hash) => ir::OpCode::HashGet,
-        x => panic!("aref not supported for {:#?}", x),
+        x => panic!("aref not supported for {}[{}]\n{:#?}", collection, key, nodes),
     };
 
     nodes.push(

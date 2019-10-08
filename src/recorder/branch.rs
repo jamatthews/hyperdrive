@@ -15,7 +15,7 @@ pub fn record(nodes: &mut IrNodes, ssa_stack: &mut Vec<SsaRef>, _instruction: In
     nodes.push(
         IrNode {
             type_: IrType::None,
-            opcode: ir::OpCode::Snapshot(thread.get_pc() as u64 + 8),
+            opcode: ir::OpCode::Snapshot(thread.get_pc() as u64 + 8, SsaOrValue::Value(thread.get_self())),
             operands: vec![],
             ssa_operands: vec![],
         }

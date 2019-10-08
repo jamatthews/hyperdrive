@@ -29,7 +29,7 @@ pub enum InternalType {
 #[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(vm::OpCode),
-    Snapshot(u64),
+    Snapshot(u64, SsaOrValue),
     Guard(IrType),
     Loop,
     ArrayAppend,
@@ -39,4 +39,10 @@ pub enum OpCode {
     NewHash,
     HashSet,
     HashGet,
+}
+
+#[derive(Clone, Debug)]
+pub enum SsaOrValue {
+    Ssa(usize),
+    Value(VALUE)
 }

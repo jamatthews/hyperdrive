@@ -1,3 +1,4 @@
+use vm::*;
 use ir::*;
 use hyperdrive_ruby::VALUE;
 use std::mem::transmute;
@@ -17,14 +18,16 @@ pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
     pub compiled_code: Option<fn(*const VALUE) -> i64>,
+    pub self_: VALUE,
 }
 
 impl Trace {
-    pub fn new(pc: u64, nodes: IrNodes) -> Self {
+    pub fn new(nodes: IrNodes, thread: Thread) -> Self {
         Trace {
-            anchor: pc,
+            anchor: thread.get_pc() as u64,
             nodes: nodes,
             compiled_code: None,
+            self_: thread.get_self(),
         }
     }
 
@@ -41,7 +44,7 @@ impl Trace {
             let mut builder_context = FunctionBuilderContext::new();
             let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
             let mut compiler = Compiler::new(module, builder);
-            compiler.compile(self.nodes.clone());
+            compiler.compile(self.clone());
         }
 
         module
@@ -65,7 +68,7 @@ impl Trace {
         let mut builder_context = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
         let mut compiler = Compiler::new(module, builder);
-        compiler.compile(self.nodes.clone());
+        compiler.compile(self.clone());
         compiler.preview().unwrap()
     }
 }

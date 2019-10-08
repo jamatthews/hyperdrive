@@ -11,6 +11,16 @@ class BasicTest < Minitest::Test
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
 
+  def test_method_call
+    trace_count = Hyperdrive.trace_count
+    i = 0
+    while i < 1002
+      i = add_one(i)
+    end
+    assert_equal 1002, i
+    assert_equal Hyperdrive.trace_count, trace_count + 1
+  end
+
   def test_cfunc_call
     trace_count = Hyperdrive.trace_count
     i = 0
@@ -22,17 +32,7 @@ class BasicTest < Minitest::Test
     assert_equal [1,2], x
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
-
-  def test_method_call
-    trace_count = Hyperdrive.trace_count
-    i = 0
-    while i < 1002
-      i = add_one(i)
-    end
-    assert_equal 1002, i
-    assert_equal Hyperdrive.trace_count, trace_count + 1
-  end
-
+  
   private
   def add_one(x)
     x + 1
