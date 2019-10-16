@@ -16,8 +16,7 @@ mod opt_send_without_block;
 mod pop;
 mod putnil;
 mod putobject;
-mod putobject_int2fix_0_;
-mod putobject_int2fix_1_;
+mod putobject_fix;
 mod putself;
 mod putstring;
 mod setlocal_wc_0;
@@ -61,8 +60,8 @@ impl Recorder {
         }
 
         match opcode {
-            OpCode::branchif|OpCode::branchunless => { branch::record(&mut self.nodes, &mut self.stack, instruction, thread) },
-            OpCode::dup => { dup::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::branchif|OpCode::branchunless => { self.record_branch(thread, instruction) },
+            OpCode::dup => { self.record_dup(thread, instruction) },
             OpCode::duparray => { duparray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::getlocal_WC_0 => { getlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::newarray => { newarray::record(&mut self.nodes, &mut self.stack, instruction, thread) },
@@ -78,8 +77,7 @@ impl Recorder {
             OpCode::opt_send_without_block => { opt_send_without_block::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::pop => { pop::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putobject => { putobject::record(&mut self.nodes, &mut self.stack, instruction, thread) },
-            OpCode::putobject_INT2FIX_0_ => { putobject_int2fix_0_::record(&mut self.nodes, &mut self.stack, instruction, thread) },
-            OpCode::putobject_INT2FIX_1_ => { putobject_int2fix_1_::record(&mut self.nodes, &mut self.stack, instruction, thread) },
+            OpCode::putobject_INT2FIX_0_|OpCode::putobject_INT2FIX_1_ => { self.record_putobject_fix(thread, instruction) },
             OpCode::putnil => { putnil::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::putstring => { putstring::record(&mut self.nodes, &mut self.stack, instruction, thread) },
             OpCode::setlocal_WC_0 => { setlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread) },
