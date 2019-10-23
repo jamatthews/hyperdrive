@@ -8,16 +8,18 @@ pub struct CallCache {
 
 impl CallCache {
     pub fn new(cc: *const rb_call_cache) -> Self {
-        Self {
-            cc: cc,
-        }
+        Self { cc: cc }
     }
 
     pub fn get_func(&self) -> unsafe extern "C" fn() -> VALUE {
         unsafe {
             let method_entry = *(*self.cc).me;
             let definition = *method_entry.def;
-            definition.body.cfunc.func.expect("missing func in callcache")
+            definition
+                .body
+                .cfunc
+                .func
+                .expect("missing func in callcache")
         }
     }
 

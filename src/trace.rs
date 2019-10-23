@@ -1,15 +1,14 @@
-use vm::*;
-use ir::*;
-use hyperdrive_ruby::VALUE;
-use std::mem::transmute;
 use cranelift::prelude::*;
-use cranelift_codegen::Context;
 use cranelift_codegen::isa::CallConv;
+use cranelift_codegen::Context;
 use cranelift_module::*;
 use cranelift_simplejit::*;
+use hyperdrive_ruby::VALUE;
+use ir::*;
+use std::mem::transmute;
+use vm::*;
 
 use compiler::Compiler;
-
 
 pub type IrNodes = Vec<IrNode>;
 
@@ -31,13 +30,21 @@ impl Trace {
         }
     }
 
-    pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>){
+    pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>) {
         let mut codegen_context = Context::new();
         codegen_context.func.signature.call_conv = CallConv::SystemV;
-        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
 
         let func_id = module
-            .declare_function(&self.anchor.to_string(), Linkage::Export, &codegen_context.func.signature)
+            .declare_function(
+                &self.anchor.to_string(),
+                Linkage::Export,
+                &codegen_context.func.signature,
+            )
             .expect("CraneLift error declaring function");
 
         {
@@ -52,15 +59,20 @@ impl Trace {
             .expect("CraneLift error defining function");
 
         module.finalize_definitions();
-            let compiled_code = module.get_finalized_function(func_id);
+        let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code = Some(unsafe { transmute::<_, fn(*const VALUE) -> i64>(compiled_code) });
+        self.compiled_code =
+            Some(unsafe { transmute::<_, fn(*const VALUE) -> i64>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
         let mut codegen_context = Context::new();
         codegen_context.func.signature.call_conv = CallConv::SystemV;
-        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
         let _func_id = module
             .declare_function("test", Linkage::Export, &codegen_context.func.signature)
             .expect("CraneLift error declaring function");

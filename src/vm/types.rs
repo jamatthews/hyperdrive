@@ -1,9 +1,8 @@
-use std::mem;
 use std::convert::From;
+use std::mem;
 
-use hyperdrive_ruby::VALUE;
 use hyperdrive_ruby::RBasic;
-
+use hyperdrive_ruby::VALUE;
 
 const SPECIAL_SHIFT: usize = 8;
 
@@ -107,8 +106,8 @@ impl Value {
     }
 
     pub fn is_flonum(&self) -> bool {
-        (self.value & (RubySpecialFlags::FlonumMask as VALUE)) ==
-        (RubySpecialFlags::FlonumFlag as VALUE)
+        (self.value & (RubySpecialFlags::FlonumMask as VALUE))
+            == (RubySpecialFlags::FlonumFlag as VALUE)
     }
 
     pub fn type_(&self) -> ValueType {

@@ -5,20 +5,22 @@ use hyperdrive_ruby::VALUE;
 
 use vm::*;
 
-use HYPERDRIVE;
 use Mode;
+use HYPERDRIVE;
 
 extern "C" {
     #[no_mangle]
     static mut trace_recording: i32;
     #[no_mangle]
-    static mut trace_dispatch: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
+    static mut trace_dispatch:
+        unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
     #[no_mangle]
-    static mut record_instruction: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
+    static mut record_instruction:
+        unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn hyperdrive_init(){
+pub unsafe extern "C" fn hyperdrive_init() {
     trace_dispatch = hyperdrive_trace_dispatch;
     record_instruction = hyperdrive_record_instruction;
 }
@@ -31,8 +33,8 @@ pub unsafe extern "C" fn hyperdrive_trace_dispatch(
 ) {
     ::trace_dispatch(Thread::new(thread));
     match &HYPERDRIVE.lock().unwrap().mode {
-        Mode::Recording(_) => { trace_recording = 1 },
-        _ => { trace_recording = 0  },
+        Mode::Recording(_) => trace_recording = 1,
+        _ => trace_recording = 0,
     };
 }
 
@@ -44,8 +46,8 @@ pub unsafe extern "C" fn hyperdrive_record_instruction(
 ) {
     ::trace_record_instruction(Thread::new(thread));
     match &HYPERDRIVE.lock().unwrap().mode {
-        Mode::Recording(_) => { trace_recording = 1 },
-        _ => { trace_recording = 0  },
+        Mode::Recording(_) => trace_recording = 1,
+        _ => trace_recording = 0,
     };
 }
 

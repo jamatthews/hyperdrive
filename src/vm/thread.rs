@@ -8,9 +8,7 @@ pub struct Thread {
 
 impl Thread {
     pub fn new(thread: *const rb_thread_t) -> Self {
-        Self {
-            thread: thread,
-        }
+        Self { thread: thread }
     }
 
     pub fn get_pc(&self) -> *const VALUE {
@@ -18,7 +16,7 @@ impl Thread {
     }
 
     pub fn set_pc(&self, target_pc: *const u64) {
-        unsafe { (*(*(*self.thread).ec).cfp).pc  = target_pc };
+        unsafe { (*(*(*self.thread).ec).cfp).pc = target_pc };
     }
 
     pub fn get_sp(&self) -> *const VALUE {
@@ -34,6 +32,6 @@ impl Thread {
     }
 
     pub fn get_local(&self, offset: u64) -> VALUE {
-        unsafe { * self.get_ep().offset(-(offset as isize)) }
+        unsafe { *self.get_ep().offset(-(offset as isize)) }
     }
 }

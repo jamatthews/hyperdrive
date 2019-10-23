@@ -9,9 +9,7 @@ pub struct Instruction {
 
 impl Instruction {
     pub fn new(pc: *const VALUE) -> Self {
-        Self {
-            instruction: pc
-        }
+        Self { instruction: pc }
     }
 
     pub fn opcode(&self) -> OpCode {

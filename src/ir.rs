@@ -44,5 +44,5 @@ pub enum OpCode {
 #[derive(Clone, Debug)]
 pub enum SsaOrValue {
     Ssa(usize),
-    Value(VALUE)
+    Value(VALUE),
 }

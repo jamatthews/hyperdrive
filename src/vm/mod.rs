@@ -5,7 +5,7 @@ mod thread;
 mod types;
 
 pub use self::call_cache::*;
-pub use self::opcode::*;
 pub use self::instruction::*;
+pub use self::opcode::*;
 pub use self::thread::*;
 pub use self::types::*;
