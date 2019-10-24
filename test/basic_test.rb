@@ -32,7 +32,19 @@ class BasicTest < Minitest::Test
     assert_equal [1,2], x
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
-  
+
+  def test_unboxing
+    trace_count = Hyperdrive.trace_count
+    i = 0
+    x = 0
+    while i < 1002
+      x = 1000
+      i = i + 1
+    end
+    assert_equal 1000, x
+    assert_equal Hyperdrive.trace_count, trace_count + 1
+  end
+
   private
   def add_one(x)
     x + 1

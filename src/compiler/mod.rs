@@ -142,8 +142,23 @@ impl<'a> Compiler<'a> {
                     ssa_values.push(self.builder.ins().iconst(I64, unboxed as i64));
                 }
                 OpCode::Yarv(vm::OpCode::putobject) => {
-                    let unboxed = node.operands[0] >> 1;
-                    ssa_values.push(self.builder.ins().iconst(I64, unboxed as i64));
+                    let maybe_boxed = node.operands[0];
+                    let maybe_boxed = self.builder.ins().iconst(I64, maybe_boxed as i64);
+
+                    match node.type_ {
+                        IrType::Internal(InternalType::I64) => {
+                            let builder = &mut self.builder;
+                            let unboxed = value_2_i64!(maybe_boxed, builder);
+                            ssa_values.push(unboxed);
+                        }
+                        IrType::Yarv(_) => {
+                            ssa_values.push(maybe_boxed);
+                        }
+                        _ => panic!(
+                            "unexpected: type {:?} in putobject at offset: {} \n {:#?}",
+                            node.type_, i, trace.nodes
+                        ),
+                    };
                 }
                 OpCode::Yarv(vm::OpCode::opt_lt) => {
                     let a = ssa_values[node.ssa_operands[0]];
