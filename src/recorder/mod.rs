@@ -60,12 +60,8 @@ impl Recorder {
             OpCode::branchif | OpCode::branchunless => self.record_branch(thread, instruction),
             OpCode::opt_eq | OpCode::opt_lt => self.record_comparison(thread, instruction),
             OpCode::dup => self.record_dup(thread, instruction),
-            OpCode::duparray => {
-                duparray::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::getlocal_WC_0 => {
-                getlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
+            OpCode::duparray => self.record_duparray(thread, instruction),
+            OpCode::getlocal_WC_0 => self.record_getlocal(thread, instruction),
             OpCode::newarray => {
                 newarray::record(&mut self.nodes, &mut self.stack, instruction, thread)
             }

@@ -2,8 +2,8 @@ use super::*;
 
 impl Recorder {
     pub fn record_comparison(&mut self, _thread: Thread, instruction: Instruction) {
-        let b = self.stack.pop().expect("ssa stack underflow in opt_lt");
-        let a = self.stack.pop().expect("ssa stack underflow in opt_lt");
+        let b = self.stack.pop().expect("ssa stack underflow in comparison");
+        let a = self.stack.pop().expect("ssa stack underflow in comparison");
         self.nodes.push(IrNode {
             type_: IrType::Internal(InternalType::Bool),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
