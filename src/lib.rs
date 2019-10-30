@@ -132,7 +132,7 @@ fn trace_dispatch(thread: Thread) {
                     _ => panic!("tried to exit without a snapshot"),
                 };
                 let trace_function = existing_trace.compiled_code.unwrap();
-                trace_function(thread.get_ep());
+                trace_function(thread.get_thread_ptr(), thread.get_ep());
                 thread.set_pc(target_pc);
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
@@ -169,4 +169,8 @@ fn trace_record_instruction(thread: Thread) {
         },
         _ => panic!("tried to record instruction while not recording trace"),
     };
+}
+
+fn trace_exit(pc: u64) {
+
 }

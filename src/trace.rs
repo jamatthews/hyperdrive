@@ -16,7 +16,7 @@ pub type IrNodes = Vec<IrNode>;
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
-    pub compiled_code: Option<fn(*const VALUE) -> i64>,
+    pub compiled_code: Option<fn(*const VALUE, *const VALUE) -> i64>,
     pub self_: VALUE,
 }
 
@@ -33,6 +33,11 @@ impl Trace {
     pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>) {
         let mut codegen_context = Context::new();
         codegen_context.func.signature.call_conv = CallConv::SystemV;
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
         codegen_context
             .func
             .signature
@@ -62,12 +67,17 @@ impl Trace {
         let compiled_code = module.get_finalized_function(func_id);
 
         self.compiled_code =
-            Some(unsafe { transmute::<_, fn(*const VALUE) -> i64>(compiled_code) });
+            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE) -> i64>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
         let mut codegen_context = Context::new();
         codegen_context.func.signature.call_conv = CallConv::SystemV;
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
         codegen_context
             .func
             .signature

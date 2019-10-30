@@ -110,6 +110,7 @@ impl Recorder {
                 putself::record(&mut self.nodes, &mut self.stack, instruction, thread)
             }
             OpCode::leave => {}
+            OpCode::jump => {}
             _ => return Err(format!("NYI: {:?}", opcode)),
         }
 

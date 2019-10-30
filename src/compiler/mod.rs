@@ -55,7 +55,8 @@ impl<'a> Compiler<'a> {
         self.builder.switch_to_block(entry_block);
         self.builder
             .append_ebb_params_for_function_params(entry_block);
-        let ep = self.builder.ebb_params(entry_block)[0];
+        let _thread = self.builder.ebb_params(entry_block)[1];
+        let ep = self.builder.ebb_params(entry_block)[1];
         let mut self_ = self.builder.ins().iconst(I64, trace.self_ as i64);
         self.builder.ins().jump(loop_block, &[]);
         self.builder.switch_to_block(loop_block);
