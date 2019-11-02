@@ -171,6 +171,6 @@ fn trace_record_instruction(thread: Thread) {
     };
 }
 
-fn trace_exit(pc: u64) {
+fn trace_exit(_pc: u64) {
 
 }

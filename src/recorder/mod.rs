@@ -12,7 +12,6 @@ mod opt_ltlt;
 mod opt_not;
 mod opt_plus;
 mod opt_send_without_block;
-mod pop;
 mod putnil;
 mod putobject;
 mod putobject_fix;
@@ -62,53 +61,25 @@ impl Recorder {
             OpCode::dup => self.record_dup(thread, instruction),
             OpCode::duparray => self.record_duparray(thread, instruction),
             OpCode::getlocal_WC_0 => self.record_getlocal(thread, instruction),
-            OpCode::newarray => {
-                newarray::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::newhash => {
-                newhash::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_aref => {
-                opt_aref::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_aset => {
-                opt_aset::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_empty_p => {
-                opt_empty_p::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_ltlt => {
-                opt_ltlt::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_not => {
-                opt_not::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_plus => {
-                opt_plus::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::opt_send_without_block => opt_send_without_block::record(
-                &mut self.nodes,
-                &mut self.stack,
-                instruction,
-                thread,
-            ),
-            OpCode::pop => pop::record(&mut self.nodes, &mut self.stack, instruction, thread),
-            OpCode::putobject => {
-                putobject::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
+            OpCode::newarray => self.record_newarray(thread, instruction),
+            OpCode::newhash => self.record_newhash(thread, instruction),
+            OpCode::opt_aref => self.record_opt_aref(thread, instruction),
+            OpCode::opt_aset => self.record_opt_aset(thread, instruction),
+            OpCode::opt_empty_p => self.record_opt_empty_p(thread, instruction),
+            OpCode::opt_ltlt => self.record_opt_ltlt(thread, instruction),
+            OpCode::opt_not => self.record_opt_not(thread, instruction),
+            OpCode::opt_plus => self.record_opt_plus(thread, instruction),
+            OpCode::opt_send_without_block => self.record_opt_send_without_block(thread, instruction),
+            OpCode::pop => { self.stack.pop(); },
+            OpCode::putnil => self.record_putnil(thread, instruction),
+            OpCode::putobject => self.record_putobject(thread, instruction),
             OpCode::putobject_INT2FIX_0_ | OpCode::putobject_INT2FIX_1_ => {
                 self.record_putobject_fix(thread, instruction)
-            }
-            OpCode::putnil => putnil::record(&mut self.nodes, &mut self.stack, instruction, thread),
-            OpCode::putstring => {
-                putstring::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::setlocal_WC_0 => {
-                setlocal_wc_0::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
-            OpCode::putself => {
-                putself::record(&mut self.nodes, &mut self.stack, instruction, thread)
-            }
+            },
+            OpCode::putself => self.record_putself(thread, instruction),
+            OpCode::putstring => self.record_putstring(thread, instruction),
+            OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
+
             OpCode::leave => {}
             OpCode::jump => {}
             _ => return Err(format!("NYI: {:?}", opcode)),

@@ -1,19 +1,16 @@
 use super::*;
 
-pub fn record(
-    nodes: &mut IrNodes,
-    ssa_stack: &mut Vec<SsaRef>,
-    instruction: Instruction,
-    thread: Thread,
-) {
-    let raw_value = thread.get_self();
-    let value: Value = raw_value.into();
+impl Recorder {
+    pub fn record_putself(&mut self, thread: Thread, instruction: Instruction) {
+        let raw_value = thread.get_self();
+        let value: Value = raw_value.into();
 
-    nodes.push(IrNode {
-        type_: IrType::Yarv(value.type_()),
-        opcode: ir::OpCode::Yarv(instruction.opcode()),
-        operands: vec![],
-        ssa_operands: vec![],
-    });
-    ssa_stack.push(nodes.len() - 1);
+        self.nodes.push(IrNode {
+            type_: IrType::Yarv(value.type_()),
+            opcode: ir::OpCode::Yarv(instruction.opcode()),
+            operands: vec![],
+            ssa_operands: vec![],
+        });
+        self.stack.push(self.nodes.len() - 1);
+    }
 }
