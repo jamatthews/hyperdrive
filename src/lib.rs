@@ -128,7 +128,7 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let target_pc = match existing_trace.nodes[existing_trace.nodes.len() - 2].opcode {
-                    OpCode::Snapshot(pc, _) => pc as *const VALUE,
+                    OpCode::Snapshot(pc, _, _) => pc as *const VALUE,
                     _ => panic!("tried to exit without a snapshot"),
                 };
                 let trace_function = existing_trace.compiled_code.unwrap();
@@ -171,6 +171,4 @@ fn trace_record_instruction(thread: Thread) {
     };
 }
 
-fn trace_exit(_pc: u64) {
-
-}
+fn trace_exit(_pc: u64) {}

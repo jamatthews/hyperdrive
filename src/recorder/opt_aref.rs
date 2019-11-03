@@ -1,6 +1,5 @@
 use super::*;
 
-
 impl Recorder {
     pub fn record_opt_aref(&mut self, _thread: Thread, _instruction: Instruction) {
         let key = self.stack_pop();

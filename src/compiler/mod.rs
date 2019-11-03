@@ -448,7 +448,7 @@ impl<'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 }
-                Snapshot(_, new_self) => {
+                Snapshot(_, new_self, _) => {
                     match new_self {
                         SsaOrValue::Ssa(reference) => self_ = ssa_values[*reference],
                         SsaOrValue::Value(_) => {}

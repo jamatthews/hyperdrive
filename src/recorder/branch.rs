@@ -10,14 +10,6 @@ impl Recorder {
             operands: vec![],
             ssa_operands: vec![popped],
         });
-        self.nodes.push(IrNode {
-            type_: IrType::None,
-            opcode: ir::OpCode::Snapshot(
-                thread.get_pc() as u64 + 8,
-                SsaOrValue::Value(thread.get_self()),
-            ),
-            operands: vec![],
-            ssa_operands: vec![],
-        });
+        self.snapshot(thread);
     }
 }

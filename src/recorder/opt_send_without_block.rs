@@ -15,12 +15,7 @@ impl Recorder {
                 ssa_operands: vec![receiver],
             });
         } else {
-            self.nodes.push(IrNode {
-                type_: self.nodes[receiver].type_.clone(),
-                opcode: ir::OpCode::Snapshot(thread.get_pc() as u64, SsaOrValue::Ssa(receiver)),
-                operands: vec![instruction.get_operand(0), instruction.get_operand(1)],
-                ssa_operands: vec![receiver],
-            });
+            self.snapshot(thread);
         }
         self.stack_push(self.nodes.len() - 1);
     }

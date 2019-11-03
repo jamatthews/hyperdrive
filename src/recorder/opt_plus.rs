@@ -9,7 +9,7 @@ impl Recorder {
             type_: IrType::Internal(InternalType::I64),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],
-            ssa_operands: vec![a,b],
+            ssa_operands: vec![a, b],
         });
         self.stack_push(self.nodes.len() - 1);
     }

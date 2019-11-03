@@ -19,9 +19,9 @@ mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
-use std::collections::HashMap;
 use ir;
 use ir::*;
+use std::collections::HashMap;
 use trace::IrNodes;
 use vm::OpCode;
 use vm::*;
@@ -30,7 +30,7 @@ use vm::*;
 pub struct Recorder {
     pub nodes: IrNodes,
     pub anchor: u64,
-    stack: HashMap<isize,SsaRef>,
+    stack: HashMap<isize, SsaRef>,
     sp_base: *const u64,
     sp_offset: isize,
 }
@@ -52,16 +52,14 @@ impl Recorder {
             Some(ssa_ref) => *ssa_ref,
             None => {
                 let value: Value = unsafe { *self.sp_base.offset(-1 * self.sp_offset) }.into();
-                self.nodes.push(
-                    IrNode {
-                        type_: IrType::Yarv(value.type_()),
-                        opcode: ir::OpCode::StackLoad,
-                        operands: vec![],
-                        ssa_operands: vec![],
-                    }
-                );
+                self.nodes.push(IrNode {
+                    type_: IrType::Yarv(value.type_()),
+                    opcode: ir::OpCode::StackLoad,
+                    operands: vec![],
+                    ssa_operands: vec![],
+                });
                 self.nodes.len() - 1
-            },
+            }
         }
     }
 
@@ -98,13 +96,17 @@ impl Recorder {
             OpCode::opt_ltlt => self.record_opt_ltlt(thread, instruction),
             OpCode::opt_not => self.record_opt_not(thread, instruction),
             OpCode::opt_plus => self.record_opt_plus(thread, instruction),
-            OpCode::opt_send_without_block => self.record_opt_send_without_block(thread, instruction),
-            OpCode::pop => { self.stack_pop(); },
+            OpCode::opt_send_without_block => {
+                self.record_opt_send_without_block(thread, instruction)
+            }
+            OpCode::pop => {
+                self.stack_pop();
+            }
             OpCode::putnil => self.record_putnil(thread, instruction),
             OpCode::putobject => self.record_putobject(thread, instruction),
             OpCode::putobject_INT2FIX_0_ | OpCode::putobject_INT2FIX_1_ => {
                 self.record_putobject_fix(thread, instruction)
-            },
+            }
             OpCode::putself => self.record_putself(thread, instruction),
             OpCode::putstring => self.record_putstring(thread, instruction),
             OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
@@ -115,5 +117,18 @@ impl Recorder {
         }
 
         Ok(false)
+    }
+
+    fn snapshot(&mut self, thread: Thread) {
+        self.nodes.push(IrNode {
+            type_: IrType::None,
+            opcode: ir::OpCode::Snapshot(
+                thread.get_pc() as u64 + 8,
+                SsaOrValue::Value(thread.get_self()),
+                self.stack.clone(),
+            ),
+            operands: vec![],
+            ssa_operands: vec![],
+        });
     }
 }

@@ -1,4 +1,5 @@
 use hyperdrive_ruby::VALUE;
+use std::collections::HashMap;
 use vm;
 use vm::*;
 
@@ -29,7 +30,7 @@ pub enum InternalType {
 #[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(vm::OpCode),
-    Snapshot(u64, SsaOrValue),
+    Snapshot(u64, SsaOrValue, HashMap<isize, SsaRef>),
     StackLoad,
     Guard(IrType),
     Loop,
