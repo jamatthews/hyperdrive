@@ -11,6 +11,6 @@ impl Recorder {
             operands: vec![],
             ssa_operands: vec![],
         });
-        self.stack.push(self.nodes.len() - 1);
+        self.stack_push(self.nodes.len() - 1);
     }
 }

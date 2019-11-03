@@ -30,6 +30,7 @@ pub enum InternalType {
 pub enum OpCode {
     Yarv(vm::OpCode),
     Snapshot(u64, SsaOrValue),
+    StackLoad,
     Guard(IrType),
     Loop,
     ArrayAppend,

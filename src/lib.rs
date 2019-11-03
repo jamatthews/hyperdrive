@@ -140,7 +140,7 @@ fn trace_dispatch(thread: Thread) {
                 if *count > 1000 {
                     let failures = hyperdrive.failures.get(&pc).unwrap_or(&0);
                     if *failures < 5 {
-                        hyperdrive.mode = Mode::Recording(Recorder::new(pc));
+                        hyperdrive.mode = Mode::Recording(Recorder::new(thread));
                     }
                 }
             }

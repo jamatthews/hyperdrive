@@ -2,9 +2,9 @@ use super::*;
 
 impl Recorder {
     pub fn record_opt_aset(&mut self, _thread: Thread, _instruction: Instruction) {
-        let value = self.stack.pop().expect("ssa stack underflow in opt_aset");
-        let key = self.stack.pop().expect("ssa stack underflow in opt_aset");
-        let collection = self.stack.pop().expect("ssa stack underflow in opt_aset");
+        let value = self.stack_pop();
+        let key = self.stack_pop();
+        let collection = self.stack_pop();
 
         let opcode = match self.nodes[collection].type_.clone() {
             IrType::Yarv(ValueType::Array) => ir::OpCode::ArraySet,
@@ -18,6 +18,6 @@ impl Recorder {
             operands: vec![],
             ssa_operands: vec![collection, key, value],
         });
-        self.stack.push(self.nodes.len() - 1);
+        self.stack_push(self.nodes.len() - 1);
     }
 }

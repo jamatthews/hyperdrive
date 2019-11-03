@@ -19,6 +19,7 @@ mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
+use std::collections::HashMap;
 use ir;
 use ir::*;
 use trace::IrNodes;
@@ -28,17 +29,45 @@ use vm::*;
 #[derive(Clone, Debug)]
 pub struct Recorder {
     pub nodes: IrNodes,
-    stack: Vec<SsaRef>,
     pub anchor: u64,
+    stack: HashMap<isize,SsaRef>,
+    sp_base: *const u64,
+    sp_offset: isize,
 }
 
 impl Recorder {
-    pub fn new(anchor: u64) -> Self {
+    pub fn new(thread: Thread) -> Self {
         Self {
             nodes: vec![],
-            stack: vec![],
-            anchor: anchor,
+            stack: HashMap::new(),
+            anchor: thread.get_pc() as u64,
+            sp_base: thread.get_sp(),
+            sp_offset: 0,
         }
+    }
+
+    fn stack_pop(&mut self) -> SsaRef {
+        self.sp_offset -= 1;
+        match self.stack.get(&self.sp_offset) {
+            Some(ssa_ref) => *ssa_ref,
+            None => {
+                let value: Value = unsafe { *self.sp_base.offset(-1 * self.sp_offset) }.into();
+                self.nodes.push(
+                    IrNode {
+                        type_: IrType::Yarv(value.type_()),
+                        opcode: ir::OpCode::StackLoad,
+                        operands: vec![],
+                        ssa_operands: vec![],
+                    }
+                );
+                self.nodes.len() - 1
+            },
+        }
+    }
+
+    fn stack_push(&mut self, ssa_ref: SsaRef) {
+        self.stack.insert(self.sp_offset, ssa_ref);
+        self.sp_offset += 1;
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
@@ -70,7 +99,7 @@ impl Recorder {
             OpCode::opt_not => self.record_opt_not(thread, instruction),
             OpCode::opt_plus => self.record_opt_plus(thread, instruction),
             OpCode::opt_send_without_block => self.record_opt_send_without_block(thread, instruction),
-            OpCode::pop => { self.stack.pop(); },
+            OpCode::pop => { self.stack_pop(); },
             OpCode::putnil => self.record_putnil(thread, instruction),
             OpCode::putobject => self.record_putobject(thread, instruction),
             OpCode::putobject_INT2FIX_0_ | OpCode::putobject_INT2FIX_1_ => {
