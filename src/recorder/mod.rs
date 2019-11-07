@@ -48,8 +48,8 @@ impl Recorder {
 
     fn stack_pop(&mut self) -> SsaRef {
         self.sp_offset -= 1;
-        match self.stack.get(&self.sp_offset) {
-            Some(ssa_ref) => *ssa_ref,
+        let ret = match self.stack.remove(&self.sp_offset) {
+            Some(ssa_ref) => ssa_ref,
             None => {
                 let value: Value = unsafe { *self.sp_base.offset(-1 * self.sp_offset) }.into();
                 self.nodes.push(IrNode {
@@ -60,7 +60,8 @@ impl Recorder {
                 });
                 self.nodes.len() - 1
             }
-        }
+        };
+        ret
     }
 
     fn stack_push(&mut self, ssa_ref: SsaRef) {
@@ -119,16 +120,12 @@ impl Recorder {
         Ok(false)
     }
 
-    fn snapshot(&mut self, thread: Thread) {
-        self.nodes.push(IrNode {
-            type_: IrType::None,
-            opcode: ir::OpCode::Snapshot(
-                thread.get_pc() as u64 + 8,
-                SsaOrValue::Value(thread.get_self()),
-                self.stack.clone(),
-            ),
-            operands: vec![],
-            ssa_operands: vec![],
-        });
+    fn snapshot(&mut self, thread: Thread) -> Snapshot {
+        Snapshot {
+            pc: thread.get_pc() as u64,
+            sp: thread.get_sp() as u64,
+            self_: SsaOrValue::Value(thread.get_self()),
+            stack_map: self.stack.clone(),
+        }
     }
 }

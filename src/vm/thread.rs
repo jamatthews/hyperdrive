@@ -19,12 +19,16 @@ impl Thread {
         unsafe { (*(*(*self.thread).ec).cfp).pc }
     }
 
-    pub fn set_pc(&self, target_pc: *const u64) {
-        unsafe { (*(*(*self.thread).ec).cfp).pc = target_pc };
+    pub fn set_pc(&self, target_pc: u64) {
+        unsafe { (*(*(*self.thread).ec).cfp).pc = target_pc as *const u64 };
     }
 
     pub fn get_sp(&self) -> *const VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).sp }
+    }
+
+    pub fn get_sp_ptr(&self) -> *const *mut VALUE {
+        unsafe { (&(*(*(*self.thread).ec).cfp).sp) as *const _ }
     }
 
     pub fn get_ep(&self) -> *const VALUE {

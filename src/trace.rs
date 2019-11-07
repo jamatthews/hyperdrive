@@ -16,8 +16,9 @@ pub type IrNodes = Vec<IrNode>;
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
-    pub compiled_code: Option<fn(*const VALUE, *const VALUE) -> i64>,
+    pub compiled_code: Option<fn(*const VALUE, *const VALUE, *const *mut u64) -> u64 >,
     pub self_: VALUE,
+    pub sp_base: u64,
 }
 
 impl Trace {
@@ -27,6 +28,7 @@ impl Trace {
             nodes: nodes,
             compiled_code: None,
             self_: thread.get_self(),
+            sp_base: thread.get_sp() as u64,
         }
     }
 
@@ -42,6 +44,16 @@ impl Trace {
             .func
             .signature
             .params
+            .push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .returns
             .push(AbiParam::new(types::I64));
 
         let func_id = module
@@ -67,7 +79,7 @@ impl Trace {
         let compiled_code = module.get_finalized_function(func_id);
 
         self.compiled_code =
-            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE) -> i64>(compiled_code) });
+            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {

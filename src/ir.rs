@@ -28,11 +28,19 @@ pub enum InternalType {
 }
 
 #[derive(Clone, Debug)]
+pub struct Snapshot {
+    pub pc: u64,
+    pub sp: u64,
+    pub self_: SsaOrValue,
+    pub stack_map: HashMap<isize, SsaRef>,
+}
+
+#[derive(Clone, Debug)]
 pub enum OpCode {
     Yarv(vm::OpCode),
-    Snapshot(u64, SsaOrValue, HashMap<isize, SsaRef>),
+    Snapshot(Snapshot),
     StackLoad,
-    Guard(IrType),
+    Guard(IrType, Snapshot),
     Loop,
     ArrayAppend,
     ArrayGet,

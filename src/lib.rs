@@ -127,13 +127,10 @@ fn trace_dispatch(thread: Thread) {
         Mode::Normal => {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
-                let target_pc = match existing_trace.nodes[existing_trace.nodes.len() - 2].opcode {
-                    OpCode::Snapshot(pc, _, _) => pc as *const VALUE,
-                    _ => panic!("tried to exit without a snapshot"),
-                };
                 let trace_function = existing_trace.compiled_code.unwrap();
-                trace_function(thread.get_thread_ptr(), thread.get_ep());
-                thread.set_pc(target_pc);
+                let exit_pc = trace_function(thread.get_thread_ptr(), thread.get_ep(), thread.get_sp_ptr());
+
+                thread.set_pc(exit_pc + 8);
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();

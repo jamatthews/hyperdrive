@@ -55,8 +55,9 @@ impl<'a> Compiler<'a> {
         self.builder.switch_to_block(entry_block);
         self.builder
             .append_ebb_params_for_function_params(entry_block);
-        let _thread = self.builder.ebb_params(entry_block)[1];
+        let _thread = self.builder.ebb_params(entry_block)[0];
         let ep = self.builder.ebb_params(entry_block)[1];
+        let sp_ptr = self.builder.ebb_params(entry_block)[2];
         let mut self_ = self.builder.ins().iconst(I64, trace.self_ as i64);
         self.builder.ins().jump(loop_block, &[]);
         self.builder.switch_to_block(loop_block);
@@ -173,34 +174,59 @@ impl<'a> Compiler<'a> {
                     let result = self.builder.ins().icmp(IntCC::Equal, a, b);
                     ssa_values.push(result);
                 }
-                OpCode::Guard(IrType::Yarv(type_)) => {
+                OpCode::Guard(IrType::Yarv(type_), snapshot) => {
                     let value = ssa_values[node.ssa_operands[0]];
                     let ssa_ref = node.ssa_operands[0];
+                    let loop_block = self.builder.create_ebb();
+                    let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
-                        ValueType::True => {
-                            let loop_block = self.builder.create_ebb();
-                            let side_exit_block = self.builder.create_ebb();
-                            self.builder.ins().brz(value, side_exit_block, &[]);
-                            self.builder.ins().jump(loop_block, &[]);
-                            self.builder.switch_to_block(side_exit_block);
-                            self.builder.ins().return_(&[]);
-                            self.builder.switch_to_block(loop_block);
-                        }
-                        ValueType::False => {
-                            let loop_block = self.builder.create_ebb();
-                            let side_exit_block = self.builder.create_ebb();
-                            self.builder.ins().brnz(value, side_exit_block, &[]);
-                            self.builder.ins().jump(loop_block, &[]);
-                            self.builder.switch_to_block(side_exit_block);
-                            self.builder.ins().return_(&[]);
-                            self.builder.switch_to_block(loop_block);
-                        }
-                        _ => panic!(
-                            "unexpect type {:?} in guard\n {:#?} ",
-                            trace.nodes[ssa_ref].type_, trace.nodes
-                        ),
+                        ValueType::True => self.builder.ins().brz(value, side_exit_block, &[]),
+                        ValueType::False => self.builder.ins().brnz(value, side_exit_block, &[]),
+                        _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace.nodes[ssa_ref].type_, trace.nodes),
                     };
+
+                    self.builder.ins().jump(loop_block, &[]);
+                    self.builder.switch_to_block(side_exit_block);
+
+                    for (offset, ssa_ref) in snapshot.stack_map.iter() {
+                        let address = trace.sp_base as isize + offset * -1;
+                        let address = self.builder.ins().iconst(I64, address as i64);
+                        match trace.nodes[*ssa_ref].type_ {
+                            IrType::Internal(InternalType::I64) => {
+                                let unboxed = ssa_values[*ssa_ref];
+                                let builder = &mut self.builder;
+                                let rvalue = i64_2_value!(unboxed, builder);
+                                self.builder
+                                    .ins()
+                                    .store(MemFlags::new(), rvalue, address, 0);
+                            }
+                            IrType::Yarv(_) | IrType::Internal(InternalType::Value) => {
+                                let rvalue = ssa_values[*ssa_ref];
+                                self.builder
+                                    .ins()
+                                    .store(MemFlags::new(), rvalue, address, 0);
+                            }
+                            IrType::Internal(InternalType::Bool) => {
+                                let unboxed = ssa_values[*ssa_ref];
+                                let builder = &mut self.builder;
+                                let rvalue = b1_2_value!(unboxed, builder);
+                                self.builder
+                                    .ins()
+                                    .store(MemFlags::new(), rvalue, address, 0);
+                            }
+                            _ => panic!(
+                                "unexpect type {:?} in restoring stack\n {:#?} ",
+                                trace.nodes[*ssa_ref].type_, trace.nodes
+                            ),
+                        };
+                    };
+
+                    let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
+                    self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
+                    let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
+                    self.builder.ins().return_(&[pc]);
+                    self.builder.switch_to_block(loop_block);
                     ssa_values.push(ssa_values[ssa_ref]);
                 }
                 OpCode::Loop => {
@@ -448,9 +474,9 @@ impl<'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 }
-                Snapshot(_, new_self, _) => {
-                    match new_self {
-                        SsaOrValue::Ssa(reference) => self_ = ssa_values[*reference],
+                Snapshot(snapshot) => {
+                    match snapshot.self_ {
+                        SsaOrValue::Ssa(reference) => self_ = ssa_values[reference],
                         SsaOrValue::Value(_) => {}
                     }
                     ssa_values.push(self.builder.ins().iconst(I64, 0 as i64));

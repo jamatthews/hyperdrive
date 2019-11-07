@@ -11,6 +11,5 @@ impl Recorder {
             operands: vec![offset],
             ssa_operands: vec![popped],
         });
-        self.stack_push(self.nodes.len() - 1);
     }
 }
