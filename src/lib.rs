@@ -129,8 +129,12 @@ fn trace_dispatch(thread: Thread) {
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
                 let exit_pc = trace_function(thread.get_thread_ptr(), thread.get_ep(), thread.get_sp_ptr());
-
-                thread.set_pc(exit_pc + 8);
+                let value: vm::Value = unsafe { *thread.get_sp().offset(-1) }.into();
+                // println!("stack: {:#?}", value.type_());
+                // println!("pc: {:#?}", pc);
+                // println!("exit_pc: {:#?}", exit_pc);
+                // println!("exiting into: {:#?}", Instruction::new((exit_pc)as *const VALUE).opcode());
+                thread.set_pc(exit_pc - 8);  //the width of the hot_loop instruction
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();

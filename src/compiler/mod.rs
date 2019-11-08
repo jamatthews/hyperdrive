@@ -190,8 +190,7 @@ impl<'a> Compiler<'a> {
                     self.builder.switch_to_block(side_exit_block);
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
-                        let address = trace.sp_base as isize + offset * -1;
-                        let address = self.builder.ins().iconst(I64, address as i64);
+                        let address = self.builder.ins().iconst(I64, trace.sp_base as i64);
                         match trace.nodes[*ssa_ref].type_ {
                             IrType::Internal(InternalType::I64) => {
                                 let unboxed = ssa_values[*ssa_ref];
@@ -199,13 +198,13 @@ impl<'a> Compiler<'a> {
                                 let rvalue = i64_2_value!(unboxed, builder);
                                 self.builder
                                     .ins()
-                                    .store(MemFlags::new(), rvalue, address, 0);
+                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
                             }
                             IrType::Yarv(_) | IrType::Internal(InternalType::Value) => {
                                 let rvalue = ssa_values[*ssa_ref];
                                 self.builder
                                     .ins()
-                                    .store(MemFlags::new(), rvalue, address, 0);
+                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
                             }
                             IrType::Internal(InternalType::Bool) => {
                                 let unboxed = ssa_values[*ssa_ref];
@@ -213,7 +212,7 @@ impl<'a> Compiler<'a> {
                                 let rvalue = b1_2_value!(unboxed, builder);
                                 self.builder
                                     .ins()
-                                    .store(MemFlags::new(), rvalue, address, 0);
+                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
                             }
                             _ => panic!(
                                 "unexpect type {:?} in restoring stack\n {:#?} ",
