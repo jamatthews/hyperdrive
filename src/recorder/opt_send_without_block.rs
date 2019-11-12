@@ -23,6 +23,7 @@ impl Recorder {
                 operands: vec![],
                 ssa_operands: vec![],
             });
+            self.stack_push(receiver);
         }
     }
 }
