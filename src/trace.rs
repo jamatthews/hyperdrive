@@ -34,42 +34,11 @@ impl Trace {
 
     pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>) {
         let mut codegen_context = Context::new();
-        codegen_context.func.signature.call_conv = CallConv::SystemV;
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .returns
-            .push(AbiParam::new(types::I64));
-
-        let func_id = module
-            .declare_function(
-                &self.anchor.to_string(),
-                Linkage::Export,
-                &codegen_context.func.signature,
-            )
-            .expect("CraneLift error declaring function");
-
-        {
-            let mut builder_context = FunctionBuilderContext::new();
-            let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
-            let mut compiler = Compiler::new(module, builder);
-            compiler.compile(self.clone());
-        }
+        let func_id = self.declare(&mut codegen_context, module);
+        let mut builder_context = FunctionBuilderContext::new();
+        let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
+        let mut compiler = Compiler::new(module, builder);
+        compiler.compile(self.clone());
 
         module
             .define_function(func_id, &mut codegen_context)
@@ -84,25 +53,45 @@ impl Trace {
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
         let mut codegen_context = Context::new();
-        codegen_context.func.signature.call_conv = CallConv::SystemV;
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        let _func_id = module
-            .declare_function("test", Linkage::Export, &codegen_context.func.signature)
-            .expect("CraneLift error declaring function");
-
+        self.declare(&mut codegen_context, module);
         let mut builder_context = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
         let mut compiler = Compiler::new(module, builder);
         compiler.compile(self.clone());
         compiler.preview().unwrap()
+    }
+
+    fn declare(&mut self, codegen_context: &mut Context, module: &mut Module<SimpleJITBackend>) -> FuncId {
+        codegen_context.func.signature.call_conv = CallConv::SystemV;
+        // Thread, EP, SP
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
+        codegen_context
+            .func
+            .signature
+            .params
+            .push(AbiParam::new(types::I64));
+        // PC
+        codegen_context
+            .func
+            .signature
+            .returns
+            .push(AbiParam::new(types::I64));
+
+        module
+            .declare_function(
+                &self.anchor.to_string(),
+                Linkage::Export,
+                &codegen_context.func.signature,
+            )
+            .expect("CraneLift error declaring function")
     }
 }
