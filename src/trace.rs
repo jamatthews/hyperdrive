@@ -34,14 +34,21 @@ impl Trace {
     }
 
     pub fn peel(&mut self) {
-        let mut peeled = self.nodes.clone();
+        let peeled = self.nodes.clone();
         self.nodes.push(IrNode {
             type_: IrType::None,
             opcode: ir::OpCode::Loop,
             operands: vec![],
             ssa_operands: vec![],
         });
-        self.nodes.append(&mut peeled);
+        for node in &peeled {
+            self.nodes.push(IrNode {
+                type_: node.type_.clone(),
+                opcode: node.opcode.clone(),
+                operands: node.operands.clone(),
+                ssa_operands: node.ssa_operands.iter().map(|op| op + self.nodes.len() ).collect(),
+            });
+        }
     }
 
     pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>) {
