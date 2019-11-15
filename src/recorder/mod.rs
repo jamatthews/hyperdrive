@@ -74,12 +74,6 @@ impl Recorder {
         let opcode = instruction.opcode();
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
-            self.nodes.push(IrNode {
-                type_: IrType::None,
-                opcode: ir::OpCode::Loop,
-                operands: vec![],
-                ssa_operands: vec![],
-            });
             return Ok(true);
         }
 

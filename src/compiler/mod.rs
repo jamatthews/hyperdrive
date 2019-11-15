@@ -229,9 +229,6 @@ impl<'a> Compiler<'a> {
                     self.builder.switch_to_block(loop_block);
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
-                OpCode::Loop => {
-                    self.builder.ins().jump(original_loop_block, &[]);
-                }
                 OpCode::Yarv(vm::OpCode::duparray) => {
                     let array = node.operands[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
@@ -484,6 +481,8 @@ impl<'a> Compiler<'a> {
                 _ => panic!("NYI: {:?}", node.opcode),
             };
         }
+        
+        self.builder.ins().jump(original_loop_block, &[]);
     }
 
     pub fn preview(&mut self) -> Result<String, String> {

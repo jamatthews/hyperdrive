@@ -41,7 +41,6 @@ pub enum OpCode {
     Snapshot(Snapshot),
     StackLoad,
     Guard(IrType, Snapshot),
-    Loop,
     ArrayAppend,
     ArrayGet,
     NewArray,
