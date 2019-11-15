@@ -4,6 +4,7 @@ use cranelift_codegen::Context;
 use cranelift_module::*;
 use cranelift_simplejit::*;
 use hyperdrive_ruby::VALUE;
+use ir;
 use ir::*;
 use std::mem::transmute;
 use vm::*;
@@ -30,6 +31,17 @@ impl Trace {
             self_: thread.get_self(),
             sp_base: thread.get_sp() as u64,
         }
+    }
+
+    pub fn peel(&mut self) {
+        let mut peeled = self.nodes.clone();
+        self.nodes.push(IrNode {
+            type_: IrType::None,
+            opcode: ir::OpCode::Loop,
+            operands: vec![],
+            ssa_operands: vec![],
+        });
+        self.nodes.append(&mut peeled);
     }
 
     pub fn compile(&mut self, module: &mut Module<SimpleJITBackend>) {
