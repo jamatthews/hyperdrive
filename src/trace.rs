@@ -3,6 +3,8 @@ use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::Context;
 use cranelift_module::*;
 use cranelift_simplejit::*;
+use std::collections::HashMap;
+use std::fmt;
 use hyperdrive_ruby::VALUE;
 use ir;
 use ir::*;
@@ -13,7 +15,7 @@ use compiler::Compiler;
 
 pub type IrNodes = Vec<IrNode>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
@@ -30,24 +32,6 @@ impl Trace {
             compiled_code: None,
             self_: thread.get_self(),
             sp_base: thread.get_sp() as u64,
-        }
-    }
-
-    pub fn peel(&mut self) {
-        let peeled = self.nodes.clone();
-        self.nodes.push(IrNode {
-            type_: IrType::None,
-            opcode: ir::OpCode::Loop,
-            operands: vec![],
-            ssa_operands: vec![],
-        });
-        for node in &peeled {
-            self.nodes.push(IrNode {
-                type_: node.type_.clone(),
-                opcode: node.opcode.clone(),
-                operands: node.operands.clone(),
-                ssa_operands: node.ssa_operands.iter().map(|op| op + self.nodes.len() ).collect(),
-            });
         }
     }
 
@@ -112,5 +96,44 @@ impl Trace {
                 &codegen_context.func.signature,
             )
             .expect("CraneLift error declaring function")
+    }
+
+    pub fn peel(&mut self) {
+        let peeled = self.nodes.clone();
+        self.nodes.push(IrNode {
+            type_: IrType::None,
+            opcode: ir::OpCode::Loop,
+            operands: vec![],
+            ssa_operands: vec![],
+        });
+        for node in &peeled {
+            let opcode = match &node.opcode {
+                ir::OpCode::Guard(_, original)|ir::OpCode::Snapshot(original) => {
+                    let mut updated = HashMap::new();
+                    for (offset, ssa_ref) in original.stack_map.iter() {
+                        updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
+                    };
+                    ir::OpCode::Snapshot(Snapshot {
+                        pc: original.pc,
+                        sp: original.sp,
+                        self_: original.self_.clone(),
+                        stack_map: updated,
+                    })
+                }
+                opcode => opcode.clone()
+            };
+            self.nodes.push(IrNode {
+                type_: node.type_.clone(),
+                opcode: opcode,
+                operands: node.operands.clone(),
+                ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1 ).collect(),
+            });
+        }
+    }
+}
+
+impl fmt::Debug for Trace {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_map().entries(self.nodes.iter().enumerate()).finish()
     }
 }

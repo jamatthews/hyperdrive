@@ -52,8 +52,7 @@ impl<'a> Compiler<'a> {
 
     pub fn compile(&mut self, trace: Trace) {
         let entry_block = self.builder.create_ebb();
-        let loop_block = self.builder.create_ebb();
-        let original_loop_block = loop_block;
+        let loop_start = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
         self.builder
             .append_ebb_params_for_function_params(entry_block);
@@ -61,13 +60,45 @@ impl<'a> Compiler<'a> {
         let ep = self.builder.ebb_params(entry_block)[1];
         let sp_ptr = self.builder.ebb_params(entry_block)[2];
         let mut self_ = self.builder.ins().iconst(I64, trace.self_ as i64);
-        self.builder.ins().jump(loop_block, &[]);
-        self.builder.switch_to_block(loop_block);
 
-        for (i, node) in trace.nodes.iter().enumerate() {
+        let partition = trace.nodes.iter().position(|node|
+                match node.opcode {
+                    OpCode::Loop => true,
+                    _ => false,
+                }
+            ).expect("no LOOP opcode");
+
+        println!("loop start: {}", partition);
+
+        self.translate_nodes(trace.nodes[0..partition].to_vec(), trace.clone(), ep, sp_ptr);
+
+        self.builder.ins().jump(loop_start, &[]);
+        self.builder.switch_to_block(loop_start);
+
+        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
+        self.builder.ins().jump(loop_start, &[]);
+    }
+
+    pub fn preview(&mut self) -> Result<String, String> {
+        Ok(self.builder.display(None).to_string())
+    }
+
+    fn translate_nodes(&mut self, nodes: Vec<IrNode>, trace: Trace, ep: cranelift::prelude::Value, sp_ptr: cranelift::prelude::Value) {
+        for (i, node) in nodes.iter().enumerate() {
             match &node.opcode {
+                OpCode::Loop => {
+                    self.ssa_values.push(
+                        self.builder
+                            .ins()
+                            .iconst(I64, ruby_special_consts_RUBY_Qnil as i64),
+                    );
+                }
                 OpCode::Yarv(vm::OpCode::putself) => {
-                    self.ssa_values.push(self_);
+                    self.ssa_values.push(
+                        self.builder
+                            .ins()
+                            .iconst(I64, ruby_special_consts_RUBY_Qnil as i64),
+                    );
                 }
                 OpCode::Yarv(vm::OpCode::putnil) => {
                     self.ssa_values.push(
@@ -178,7 +209,8 @@ impl<'a> Compiler<'a> {
                 OpCode::Guard(IrType::Yarv(type_), snapshot) => {
                     let value = self.ssa_values[node.ssa_operands[0]];
                     let ssa_ref = node.ssa_operands[0];
-                    let loop_block = self.builder.create_ebb();
+                    // now this is a separate fuinction, this won't be setting the right block
+                    let current_block = self.builder.create_ebb();
                     let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
@@ -187,7 +219,7 @@ impl<'a> Compiler<'a> {
                         _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace.nodes[ssa_ref].type_, trace.nodes),
                     };
 
-                    self.builder.ins().jump(loop_block, &[]);
+                    self.builder.ins().jump(current_block, &[]);
                     self.builder.switch_to_block(side_exit_block);
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
@@ -226,7 +258,7 @@ impl<'a> Compiler<'a> {
                     self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
                     let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
                     self.builder.ins().return_(&[pc]);
-                    self.builder.switch_to_block(loop_block);
+                    self.builder.switch_to_block(current_block);
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::duparray) => {
@@ -473,7 +505,9 @@ impl<'a> Compiler<'a> {
                 }
                 Snapshot(snapshot) => {
                     match snapshot.self_ {
-                        SsaOrValue::Ssa(reference) => self_ = self.ssa_values[reference],
+                        SsaOrValue::Ssa(reference) => {
+
+                        },
                         SsaOrValue::Value(_) => {}
                     }
                     self.ssa_values.push(self.builder.ins().iconst(I64, 0 as i64));
@@ -481,11 +515,5 @@ impl<'a> Compiler<'a> {
                 _ => panic!("NYI: {:?}", node.opcode),
             };
         }
-        
-        self.builder.ins().jump(original_loop_block, &[]);
-    }
-
-    pub fn preview(&mut self) -> Result<String, String> {
-        Ok(self.builder.display(None).to_string())
     }
 }
