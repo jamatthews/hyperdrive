@@ -158,7 +158,7 @@ fn trace_record_instruction(thread: Thread) {
                 let mut trace = Trace::new(recorder.nodes.clone(), thread.clone());
                 trace.peel();
                 println!("{:#?}", trace);
-                println!("{}", trace.preview(&mut hyperdrive.module));
+                //println!("{}", trace.preview(&mut hyperdrive.module));
                 trace.compile(&mut hyperdrive.module);
                 hyperdrive.trace_heads.insert(trace.anchor, trace);
                 hyperdrive.mode = Mode::Normal;

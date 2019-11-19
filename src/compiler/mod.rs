@@ -52,7 +52,6 @@ impl<'a> Compiler<'a> {
 
     pub fn compile(&mut self, trace: Trace) {
         let entry_block = self.builder.create_ebb();
-        let loop_start = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
         self.builder
             .append_ebb_params_for_function_params(entry_block);
@@ -68,14 +67,15 @@ impl<'a> Compiler<'a> {
                 }
             ).expect("no LOOP opcode");
 
-        println!("loop start: {}", partition);
+        //println!("loop start: {}", partition);
 
-        self.translate_nodes(trace.nodes[0..partition].to_vec(), trace.clone(), ep, sp_ptr);
+        //self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
 
+        let loop_start = self.builder.create_ebb();
         self.builder.ins().jump(loop_start, &[]);
         self.builder.switch_to_block(loop_start);
-
-        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
+        
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
         self.builder.ins().jump(loop_start, &[]);
     }
 
@@ -210,7 +210,6 @@ impl<'a> Compiler<'a> {
                     let value = self.ssa_values[node.ssa_operands[0]];
                     let ssa_ref = node.ssa_operands[0];
                     // now this is a separate fuinction, this won't be setting the right block
-                    let current_block = self.builder.create_ebb();
                     let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
@@ -219,7 +218,8 @@ impl<'a> Compiler<'a> {
                         _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace.nodes[ssa_ref].type_, trace.nodes),
                     };
 
-                    self.builder.ins().jump(current_block, &[]);
+                    let continue_block = self.builder.create_ebb();
+                    self.builder.ins().jump(continue_block, &[]);
                     self.builder.switch_to_block(side_exit_block);
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
@@ -258,7 +258,8 @@ impl<'a> Compiler<'a> {
                     self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
                     let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
                     self.builder.ins().return_(&[pc]);
-                    self.builder.switch_to_block(current_block);
+
+                    self.builder.switch_to_block(continue_block);
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::duparray) => {

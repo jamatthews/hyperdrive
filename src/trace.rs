@@ -108,7 +108,22 @@ impl Trace {
         });
         for node in &peeled {
             let opcode = match &node.opcode {
-                ir::OpCode::Guard(_, original)|ir::OpCode::Snapshot(original) => {
+                ir::OpCode::Guard(type_, original) => {
+                    let mut updated = HashMap::new();
+                    for (offset, ssa_ref) in original.stack_map.iter() {
+                        updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
+                    };
+                    ir::OpCode::Guard(
+                        type_.clone(),
+                        Snapshot {
+                            pc: original.pc,
+                            sp: original.sp,
+                            self_: original.self_.clone(),
+                            stack_map: updated,
+                        }
+                    )
+                }
+                ir::OpCode::Snapshot(original) => {
                     let mut updated = HashMap::new();
                     for (offset, ssa_ref) in original.stack_map.iter() {
                         updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
@@ -120,7 +135,7 @@ impl Trace {
                         stack_map: updated,
                     })
                 }
-                opcode => opcode.clone()
+                op => op.clone()
             };
             self.nodes.push(IrNode {
                 type_: node.type_.clone(),
