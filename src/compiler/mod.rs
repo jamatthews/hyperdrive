@@ -162,14 +162,7 @@ impl<'a> Compiler<'a> {
                 OpCode::Yarv(vm::OpCode::duparray) => {
                     let array = node.operands[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
-                    if let Some(Func(id)) = self.module.get_name("_rb_ary_resurrect") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[array]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    self.internal_call_push("_rb_ary_resurrect", &[array]);
                 }
                 OpCode::Yarv(vm::OpCode::opt_send_without_block) => {
                     let call_cache = CallCache::new(node.operands[1] as *const _);
@@ -190,16 +183,9 @@ impl<'a> Compiler<'a> {
                 }
                 OpCode::Yarv(vm::OpCode::opt_empty_p) => {
                     let receiver = self.ssa_values[node.ssa_operands[0]];
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_str_strlen") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[receiver]);
-                        let count = self.builder.inst_results(call)[0];
-                        let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    let count = self.internal_call("_rb_str_strlen", &[receiver]);
+                    let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
+                    self.ssa_values.push(result);
                 }
                 OpCode::Yarv(vm::OpCode::dup) | OpCode::Yarv(vm::OpCode::pop) => {
                     //pop actually pushes an SSA value to keep alignment
