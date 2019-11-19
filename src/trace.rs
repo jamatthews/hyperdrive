@@ -3,11 +3,11 @@ use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::Context;
 use cranelift_module::*;
 use cranelift_simplejit::*;
-use std::collections::HashMap;
-use std::fmt;
 use hyperdrive_ruby::VALUE;
 use ir;
 use ir::*;
+use std::collections::HashMap;
+use std::fmt;
 use std::mem::transmute;
 use vm::*;
 
@@ -19,7 +19,7 @@ pub type IrNodes = Vec<IrNode>;
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
-    pub compiled_code: Option<fn(*const VALUE, *const VALUE, *const *mut u64) -> u64 >,
+    pub compiled_code: Option<fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>,
     pub self_: VALUE,
     pub sp_base: u64,
 }
@@ -50,8 +50,9 @@ impl Trace {
         module.finalize_definitions();
         let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code =
-            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>(compiled_code) });
+        self.compiled_code = Some(unsafe {
+            transmute::<_, fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>(compiled_code)
+        });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
@@ -64,7 +65,11 @@ impl Trace {
         compiler.preview().unwrap()
     }
 
-    fn declare(&mut self, codegen_context: &mut Context, module: &mut Module<SimpleJITBackend>) -> FuncId {
+    fn declare(
+        &mut self,
+        codegen_context: &mut Context,
+        module: &mut Module<SimpleJITBackend>,
+    ) -> FuncId {
         codegen_context.func.signature.call_conv = CallConv::SystemV;
         // Thread, EP, SP
         codegen_context
@@ -112,7 +117,7 @@ impl Trace {
                     let mut updated = HashMap::new();
                     for (offset, ssa_ref) in original.stack_map.iter() {
                         updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
-                    };
+                    }
                     ir::OpCode::Guard(
                         type_.clone(),
                         Snapshot {
@@ -120,14 +125,14 @@ impl Trace {
                             sp: original.sp,
                             self_: original.self_.clone(),
                             stack_map: updated,
-                        }
+                        },
                     )
                 }
                 ir::OpCode::Snapshot(original) => {
                     let mut updated = HashMap::new();
                     for (offset, ssa_ref) in original.stack_map.iter() {
                         updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
-                    };
+                    }
                     ir::OpCode::Snapshot(Snapshot {
                         pc: original.pc,
                         sp: original.sp,
@@ -135,13 +140,17 @@ impl Trace {
                         stack_map: updated,
                     })
                 }
-                op => op.clone()
+                op => op.clone(),
             };
             self.nodes.push(IrNode {
                 type_: node.type_.clone(),
                 opcode: opcode,
                 operands: node.operands.clone(),
-                ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1 ).collect(),
+                ssa_operands: node
+                    .ssa_operands
+                    .iter()
+                    .map(|op| *op + peeled.len() + 1)
+                    .collect(),
             });
         }
     }
@@ -149,6 +158,8 @@ impl Trace {
 
 impl fmt::Debug for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_map().entries(self.nodes.iter().enumerate()).finish()
+        f.debug_map()
+            .entries(self.nodes.iter().enumerate())
+            .finish()
     }
 }

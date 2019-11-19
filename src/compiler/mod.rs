@@ -60,12 +60,14 @@ impl<'a> Compiler<'a> {
         let sp_ptr = self.builder.ebb_params(entry_block)[2];
         let mut self_ = self.builder.ins().iconst(I64, trace.self_ as i64);
 
-        let partition = trace.nodes.iter().position(|node|
-                match node.opcode {
-                    OpCode::Loop => true,
-                    _ => false,
-                }
-            ).expect("no LOOP opcode");
+        let partition = trace
+            .nodes
+            .iter()
+            .position(|node| match node.opcode {
+                OpCode::Loop => true,
+                _ => false,
+            })
+            .expect("no LOOP opcode");
 
         //println!("loop start: {}", partition);
 
@@ -74,7 +76,7 @@ impl<'a> Compiler<'a> {
         let loop_start = self.builder.create_ebb();
         self.builder.ins().jump(loop_start, &[]);
         self.builder.switch_to_block(loop_start);
-        
+
         self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
         self.builder.ins().jump(loop_start, &[]);
     }
@@ -83,7 +85,13 @@ impl<'a> Compiler<'a> {
         Ok(self.builder.display(None).to_string())
     }
 
-    fn translate_nodes(&mut self, nodes: Vec<IrNode>, trace: Trace, ep: cranelift::prelude::Value, sp_ptr: cranelift::prelude::Value) {
+    fn translate_nodes(
+        &mut self,
+        nodes: Vec<IrNode>,
+        trace: Trace,
+        ep: cranelift::prelude::Value,
+        sp_ptr: cranelift::prelude::Value,
+    ) {
         for (i, node) in nodes.iter().enumerate() {
             match &node.opcode {
                 OpCode::Loop => {
@@ -108,10 +116,12 @@ impl<'a> Compiler<'a> {
                     );
                 }
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => {
-                    self.ssa_values.push(self.builder.ins().iconst(I64, 1 as i64));
+                    self.ssa_values
+                        .push(self.builder.ins().iconst(I64, 1 as i64));
                 }
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => {
-                    self.ssa_values.push(self.builder.ins().iconst(I64, 0 as i64));
+                    self.ssa_values
+                        .push(self.builder.ins().iconst(I64, 0 as i64));
                 }
                 OpCode::Yarv(vm::OpCode::opt_plus) => {
                     let a = self.ssa_values[node.ssa_operands[0]];
@@ -173,7 +183,8 @@ impl<'a> Compiler<'a> {
                 }
                 OpCode::Yarv(vm::OpCode::putstring) => {
                     let unboxed = node.operands[0];
-                    self.ssa_values.push(self.builder.ins().iconst(I64, unboxed as i64));
+                    self.ssa_values
+                        .push(self.builder.ins().iconst(I64, unboxed as i64));
                 }
                 OpCode::Yarv(vm::OpCode::putobject) => {
                     let maybe_boxed = node.operands[0];
@@ -215,7 +226,10 @@ impl<'a> Compiler<'a> {
                     match type_ {
                         ValueType::True => self.builder.ins().brz(value, side_exit_block, &[]),
                         ValueType::False => self.builder.ins().brnz(value, side_exit_block, &[]),
-                        _ => panic!("unexpect type {:?} in guard\n {:#?} ", trace.nodes[ssa_ref].type_, trace.nodes),
+                        _ => panic!(
+                            "unexpect type {:?} in guard\n {:#?} ",
+                            trace.nodes[ssa_ref].type_, trace.nodes
+                        ),
                     };
 
                     let continue_block = self.builder.create_ebb();
@@ -229,30 +243,39 @@ impl<'a> Compiler<'a> {
                                 let unboxed = self.ssa_values[*ssa_ref];
                                 let builder = &mut self.builder;
                                 let rvalue = i64_2_value!(unboxed, builder);
-                                self.builder
-                                    .ins()
-                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
+                                self.builder.ins().store(
+                                    MemFlags::new(),
+                                    rvalue,
+                                    address,
+                                    *offset as i32,
+                                );
                             }
                             IrType::Yarv(_) | IrType::Internal(InternalType::Value) => {
                                 let rvalue = self.ssa_values[*ssa_ref];
-                                self.builder
-                                    .ins()
-                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
+                                self.builder.ins().store(
+                                    MemFlags::new(),
+                                    rvalue,
+                                    address,
+                                    *offset as i32,
+                                );
                             }
                             IrType::Internal(InternalType::Bool) => {
                                 let unboxed = self.ssa_values[*ssa_ref];
                                 let builder = &mut self.builder;
                                 let rvalue = b1_2_value!(unboxed, builder);
-                                self.builder
-                                    .ins()
-                                    .store(MemFlags::new(), rvalue, address, *offset as i32);
+                                self.builder.ins().store(
+                                    MemFlags::new(),
+                                    rvalue,
+                                    address,
+                                    *offset as i32,
+                                );
                             }
                             _ => panic!(
                                 "unexpect type {:?} in restoring stack\n {:#?} ",
                                 trace.nodes[*ssa_ref].type_, trace.nodes
                             ),
                         };
-                    };
+                    }
 
                     let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
                     self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
@@ -304,8 +327,12 @@ impl<'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 }
-                OpCode::Yarv(vm::OpCode::pop) => self.ssa_values.push(self.ssa_values[node.ssa_operands[0]]),
-                OpCode::Yarv(vm::OpCode::dup) => self.ssa_values.push(self.ssa_values[node.ssa_operands[0]]),
+                OpCode::Yarv(vm::OpCode::pop) => {
+                    self.ssa_values.push(self.ssa_values[node.ssa_operands[0]])
+                }
+                OpCode::Yarv(vm::OpCode::dup) => {
+                    self.ssa_values.push(self.ssa_values[node.ssa_operands[0]])
+                }
                 OpCode::Yarv(vm::OpCode::opt_not) => {
                     let ssa_ref = node.ssa_operands[0];
                     let val = self.ssa_values[ssa_ref];
@@ -506,12 +533,11 @@ impl<'a> Compiler<'a> {
                 }
                 Snapshot(snapshot) => {
                     match snapshot.self_ {
-                        SsaOrValue::Ssa(reference) => {
-
-                        },
+                        SsaOrValue::Ssa(reference) => {}
                         SsaOrValue::Value(_) => {}
                     }
-                    self.ssa_values.push(self.builder.ins().iconst(I64, 0 as i64));
+                    self.ssa_values
+                        .push(self.builder.ins().iconst(I64, 0 as i64));
                 }
                 _ => panic!("NYI: {:?}", node.opcode),
             };
