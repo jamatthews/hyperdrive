@@ -50,9 +50,8 @@ impl Trace {
         module.finalize_definitions();
         let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code = Some(unsafe {
-            transmute::<_, fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>(compiled_code)
-        });
+        self.compiled_code =
+            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, *const *mut u64) -> u64>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
@@ -65,34 +64,14 @@ impl Trace {
         compiler.preview().unwrap()
     }
 
-    fn declare(
-        &mut self,
-        codegen_context: &mut Context,
-        module: &mut Module<SimpleJITBackend>,
-    ) -> FuncId {
+    fn declare(&mut self, codegen_context: &mut Context, module: &mut Module<SimpleJITBackend>) -> FuncId {
         codegen_context.func.signature.call_conv = CallConv::SystemV;
         // Thread, EP, SP
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
-        codegen_context
-            .func
-            .signature
-            .params
-            .push(AbiParam::new(types::I64));
+        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
+        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
+        codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         // PC
-        codegen_context
-            .func
-            .signature
-            .returns
-            .push(AbiParam::new(types::I64));
+        codegen_context.func.signature.returns.push(AbiParam::new(types::I64));
 
         module
             .declare_function(
@@ -146,11 +125,7 @@ impl Trace {
                 type_: node.type_.clone(),
                 opcode: opcode,
                 operands: node.operands.clone(),
-                ssa_operands: node
-                    .ssa_operands
-                    .iter()
-                    .map(|op| *op + peeled.len() + 1)
-                    .collect(),
+                ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),
             });
         }
     }
@@ -158,8 +133,6 @@ impl Trace {
 
 impl fmt::Debug for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_map()
-            .entries(self.nodes.iter().enumerate())
-            .finish()
+        f.debug_map().entries(self.nodes.iter().enumerate()).finish()
     }
 }

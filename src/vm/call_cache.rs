@@ -15,11 +15,7 @@ impl CallCache {
         unsafe {
             let method_entry = *(*self.cc).me;
             let definition = *method_entry.def;
-            definition
-                .body
-                .cfunc
-                .func
-                .expect("missing func in callcache")
+            definition.body.cfunc.func.expect("missing func in callcache")
         }
     }
 

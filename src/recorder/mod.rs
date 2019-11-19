@@ -91,9 +91,7 @@ impl Recorder {
             OpCode::opt_ltlt => self.record_opt_ltlt(thread, instruction),
             OpCode::opt_not => self.record_opt_not(thread, instruction),
             OpCode::opt_plus => self.record_opt_plus(thread, instruction),
-            OpCode::opt_send_without_block => {
-                self.record_opt_send_without_block(thread, instruction)
-            }
+            OpCode::opt_send_without_block => self.record_opt_send_without_block(thread, instruction),
             OpCode::pop => {
                 self.stack_pop();
             }

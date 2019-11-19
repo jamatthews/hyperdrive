@@ -12,11 +12,9 @@ extern "C" {
     #[no_mangle]
     static mut trace_recording: i32;
     #[no_mangle]
-    static mut trace_dispatch:
-        unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
+    static mut trace_dispatch: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
     #[no_mangle]
-    static mut record_instruction:
-        unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
+    static mut record_instruction: unsafe extern "C" fn(*const rb_thread_t, *const rb_control_frame_t, *const VALUE);
 }
 
 #[no_mangle]

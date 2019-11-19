@@ -106,8 +106,7 @@ impl Value {
     }
 
     pub fn is_flonum(&self) -> bool {
-        (self.value & (RubySpecialFlags::FlonumMask as VALUE))
-            == (RubySpecialFlags::FlonumFlag as VALUE)
+        (self.value & (RubySpecialFlags::FlonumMask as VALUE)) == (RubySpecialFlags::FlonumFlag as VALUE)
     }
 
     pub fn type_(&self) -> ValueType {

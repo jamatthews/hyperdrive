@@ -53,12 +53,10 @@ impl<'a> Compiler<'a> {
     pub fn compile(&mut self, trace: Trace) {
         let entry_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
-        self.builder
-            .append_ebb_params_for_function_params(entry_block);
+        self.builder.append_ebb_params_for_function_params(entry_block);
         let _thread = self.builder.ebb_params(entry_block)[0];
         let ep = self.builder.ebb_params(entry_block)[1];
         let sp_ptr = self.builder.ebb_params(entry_block)[2];
-        let mut self_ = self.builder.ins().iconst(I64, trace.self_ as i64);
 
         let partition = trace
             .nodes
@@ -90,135 +88,46 @@ impl<'a> Compiler<'a> {
         ep: cranelift::prelude::Value,
         sp_ptr: cranelift::prelude::Value,
     ) {
-        for (i, node) in nodes.iter().enumerate() {
+        for node in nodes.iter() {
             match &node.opcode {
-                OpCode::Loop => {
-                    self.ssa_values.push(
-                        self.builder
-                            .ins()
-                            .iconst(I64, ruby_special_consts_RUBY_Qnil as i64),
-                    );
+                OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
+                    self.putnil()
                 }
-                OpCode::Yarv(vm::OpCode::putself) => {
-                    self.ssa_values.push(
-                        self.builder
-                            .ins()
-                            .iconst(I64, ruby_special_consts_RUBY_Qnil as i64),
-                    );
-                }
-                OpCode::Yarv(vm::OpCode::putnil) => {
-                    self.ssa_values.push(
-                        self.builder
-                            .ins()
-                            .iconst(I64, ruby_special_consts_RUBY_Qnil as i64),
-                    );
-                }
-                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => {
-                    self.ssa_values
-                        .push(self.builder.ins().iconst(I64, 1 as i64));
-                }
-                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => {
-                    self.ssa_values
-                        .push(self.builder.ins().iconst(I64, 0 as i64));
-                }
-                OpCode::Yarv(vm::OpCode::opt_plus) => {
-                    let a = self.ssa_values[node.ssa_operands[0]];
-                    let b = self.ssa_values[node.ssa_operands[1]];
-                    self.ssa_values.push(self.builder.ins().iadd(a, b));
-                }
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putfixnum(1),
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => self.putfixnum(0),
+                OpCode::Yarv(vm::OpCode::opt_plus) => self.binary_op(node),
                 OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
-                    match node.type_ {
-                        IrType::Yarv(ValueType::Fixnum) => {
-                            let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                            let builder = &mut self.builder;
-                            let unboxed = value_2_i64!(boxed, builder);
-                            self.ssa_values.push(unboxed);
-                        }
-                        IrType::Yarv(_) => {
-                            let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                            self.ssa_values.push(boxed);
-                        }
-                        _ => panic!(
-                            "unexpected: type {:?} in getlocal at offset: {} \n {:#?}",
-                            node.type_, i, trace.nodes
-                        ),
-                    }
+                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
+                    let unboxed = self.unbox(boxed, node.clone());
+                    self.ssa_values.push(unboxed);
                 }
                 OpCode::Yarv(vm::OpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     let ssa_ref = node.ssa_operands[0];
+                    let unboxed = self.ssa_values[ssa_ref];
+                    let boxed = self.box_(unboxed, trace.nodes[ssa_ref].clone());
 
-                    match trace.nodes[ssa_ref].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let unboxed = self.ssa_values[ssa_ref];
-                            let builder = &mut self.builder;
-                            let rvalue = i64_2_value!(unboxed, builder);
-                            self.builder
-                                .ins()
-                                .store(MemFlags::new(), rvalue, ep, offset);
-                        }
-                        IrType::Yarv(_) | IrType::Internal(InternalType::Value) => {
-                            let rvalue = self.ssa_values[ssa_ref];
-                            self.builder
-                                .ins()
-                                .store(MemFlags::new(), rvalue, ep, offset);
-                        }
-                        IrType::Internal(InternalType::Bool) => {
-                            let unboxed = self.ssa_values[ssa_ref];
-                            let builder = &mut self.builder;
-                            let rvalue = b1_2_value!(unboxed, builder);
-                            self.builder
-                                .ins()
-                                .store(MemFlags::new(), rvalue, ep, offset);
-                        }
-                        _ => panic!(
-                            "unexpect type {:?} in setlocal\n {:#?} ",
-                            trace.nodes[ssa_ref].type_, trace.nodes
-                        ),
-                    };
+                    self.builder.ins().store(MemFlags::new(), boxed, ep, offset);
+
+                    //push to keep alignment
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::putstring) => {
-                    let unboxed = node.operands[0];
-                    self.ssa_values
-                        .push(self.builder.ins().iconst(I64, unboxed as i64));
+                    let str_pointer = node.operands[0];
+                    self.ssa_values.push(self.builder.ins().iconst(I64, str_pointer as i64));
                 }
                 OpCode::Yarv(vm::OpCode::putobject) => {
-                    let maybe_boxed = node.operands[0];
-                    let maybe_boxed = self.builder.ins().iconst(I64, maybe_boxed as i64);
-
-                    match node.type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            let unboxed = value_2_i64!(maybe_boxed, builder);
-                            self.ssa_values.push(unboxed);
-                        }
-                        IrType::Yarv(_) => {
-                            self.ssa_values.push(maybe_boxed);
-                        }
-                        _ => panic!(
-                            "unexpected: type {:?} in putobject at offset: {} \n {:#?}",
-                            node.type_, i, trace.nodes
-                        ),
-                    };
+                    let boxed = node.operands[0];
+                    let boxed = self.builder.ins().iconst(I64, boxed as i64);
+                    let unboxed = self.unbox(boxed, node.clone());
+                    self.ssa_values.push(unboxed);
                 }
-                OpCode::Yarv(vm::OpCode::opt_lt) => {
-                    let a = self.ssa_values[node.ssa_operands[0]];
-                    let b = self.ssa_values[node.ssa_operands[1]];
-                    let result = self.builder.ins().icmp(IntCC::SignedLessThan, a, b);
-                    self.ssa_values.push(result);
-                }
-                OpCode::Yarv(vm::OpCode::opt_eq) => {
-                    let a = self.ssa_values[node.ssa_operands[0]];
-                    let b = self.ssa_values[node.ssa_operands[1]];
-                    let result = self.builder.ins().icmp(IntCC::Equal, a, b);
-                    self.ssa_values.push(result);
-                }
+                OpCode::Yarv(vm::OpCode::opt_lt) => self.binary_op(node),
+                OpCode::Yarv(vm::OpCode::opt_eq) => self.binary_op(node),
                 OpCode::Guard(IrType::Yarv(type_), snapshot) => {
                     let value = self.ssa_values[node.ssa_operands[0]];
                     let ssa_ref = node.ssa_operands[0];
-                    // now this is a separate fuinction, this won't be setting the right block
                     let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
@@ -236,43 +145,10 @@ impl<'a> Compiler<'a> {
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
                         let address = self.builder.ins().iconst(I64, trace.sp_base as i64);
-                        match trace.nodes[*ssa_ref].type_ {
-                            IrType::Internal(InternalType::I64) => {
-                                let unboxed = self.ssa_values[*ssa_ref];
-                                let builder = &mut self.builder;
-                                let rvalue = i64_2_value!(unboxed, builder);
-                                self.builder.ins().store(
-                                    MemFlags::new(),
-                                    rvalue,
-                                    address,
-                                    *offset as i32,
-                                );
-                            }
-                            IrType::Yarv(_) | IrType::Internal(InternalType::Value) => {
-                                let rvalue = self.ssa_values[*ssa_ref];
-                                self.builder.ins().store(
-                                    MemFlags::new(),
-                                    rvalue,
-                                    address,
-                                    *offset as i32,
-                                );
-                            }
-                            IrType::Internal(InternalType::Bool) => {
-                                let unboxed = self.ssa_values[*ssa_ref];
-                                let builder = &mut self.builder;
-                                let rvalue = b1_2_value!(unboxed, builder);
-                                self.builder.ins().store(
-                                    MemFlags::new(),
-                                    rvalue,
-                                    address,
-                                    *offset as i32,
-                                );
-                            }
-                            _ => panic!(
-                                "unexpect type {:?} in restoring stack\n {:#?} ",
-                                trace.nodes[*ssa_ref].type_, trace.nodes
-                            ),
-                        };
+                        let boxed = self.box_(self.ssa_values[*ssa_ref], trace.nodes[*ssa_ref].clone());
+                        self.builder
+                            .ins()
+                            .store(MemFlags::new(), boxed, address, *offset as i32);
                     }
 
                     let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
@@ -325,220 +201,117 @@ impl<'a> Compiler<'a> {
                         panic!("function not found!");
                     }
                 }
-                OpCode::Yarv(vm::OpCode::pop) => {
-                    self.ssa_values.push(self.ssa_values[node.ssa_operands[0]])
-                }
-                OpCode::Yarv(vm::OpCode::dup) => {
+                OpCode::Yarv(vm::OpCode::dup) | OpCode::Yarv(vm::OpCode::pop) => {
+                    //pop actually pushes an SSA value to keep alignment
                     self.ssa_values.push(self.ssa_values[node.ssa_operands[0]])
                 }
                 OpCode::Yarv(vm::OpCode::opt_not) => {
                     let ssa_ref = node.ssa_operands[0];
                     let val = self.ssa_values[ssa_ref];
-
-                    match trace.nodes[ssa_ref].type_ {
-                        IrType::Internal(InternalType::Bool) => {
-                            let result = self.builder.ins().bnot(val);
-                            self.ssa_values.push(result);
-                        }
-                        IrType::Internal(InternalType::Value) => {
-                            let result = self.builder.ins().icmp_imm(IntCC::Equal, val, 0);
-                            self.ssa_values.push(result);
-                        }
-                        _ => panic!(
-                            "unexpect type {:?} in opt_not\n {:#?} ",
-                            trace.nodes[ssa_ref].type_, trace.nodes
-                        ),
+                    let result = match trace.nodes[ssa_ref].type_ {
+                        IrType::Internal(InternalType::Bool) => self.builder.ins().bnot(val),
+                        IrType::Internal(InternalType::Value) => self.builder.ins().icmp_imm(IntCC::Equal, val, 0),
+                        _ => panic!(),
                     };
+                    self.ssa_values.push(result);
                 }
                 OpCode::ArrayAppend => {
                     let array = self.ssa_values[node.ssa_operands[0]];
-                    let unboxed_object = self.ssa_values[node.ssa_operands[1]];
-
-                    let boxed_object = match trace.nodes[node.ssa_operands[1]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(unboxed_object, builder)
-                        }
-                        IrType::Yarv(ValueType::Fixnum) | IrType::Yarv(ValueType::RString) => {
-                            unboxed_object
-                        }
-                        _ => panic!(
-                            "unexpected type in ArrayAppend: {:#?} \n {:#?}",
-                            trace.nodes[node.ssa_operands[1]].type_, trace.nodes
-                        ),
-                    };
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_ary_push") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[array, boxed_object]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    let unboxed = self.ssa_values[node.ssa_operands[1]];
+                    let boxed = self.box_(unboxed, trace.nodes[node.ssa_operands[1]].clone());
+                    self.internal_call_push("_rb_ary_push", &[array, boxed]);
                 }
-                OpCode::NewArray => {
-                    if let Some(Func(id)) = self.module.get_name("_rb_ary_new") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
-                }
+                OpCode::NewArray => self.internal_call_push("_rb_ary_new", &[]),
                 OpCode::ArrayGet => {
                     let array = self.ssa_values[node.ssa_operands[0]];
-                    let maybe_unboxed = self.ssa_values[node.ssa_operands[1]];
-
-                    let boxed_object = match trace.nodes[node.ssa_operands[1]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(maybe_unboxed, builder)
-                        }
-                        IrType::Yarv(ValueType::Fixnum) => maybe_unboxed,
-                        _ => panic!(
-                            "unexpected type in ArrayReference: {:#?}",
-                            trace.nodes[node.ssa_operands[1]].type_
-                        ),
-                    };
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_ary_aref1") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[array, boxed_object]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    let unboxed = self.ssa_values[node.ssa_operands[1]];
+                    let boxed = self.box_(unboxed, trace.nodes[node.ssa_operands[1]].clone());
+                    self.internal_call_push("_rb_ary_aref1", &[array, boxed]);
                 }
                 OpCode::ArraySet => {
                     let array = self.ssa_values[node.ssa_operands[0]];
                     let key = self.ssa_values[node.ssa_operands[1]];
                     let value = self.ssa_values[node.ssa_operands[2]];
-
-                    let boxed_key = match trace.nodes[node.ssa_operands[1]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(key, builder)
-                        }
-                        IrType::Yarv(_) => key,
-                        _ => panic!(
-                            "unexpect type in ArraySet: {:#?}",
-                            trace.nodes[node.ssa_operands[1]].type_
-                        ),
-                    };
-
-                    let boxed_value = match trace.nodes[node.ssa_operands[2]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(value, builder)
-                        }
-                        IrType::Yarv(_) => value,
-                        _ => panic!(
-                            "unexpect type in ArrayAppend: {:#?} \n {:#?}",
-                            trace.nodes[node.ssa_operands[2]].type_, trace.nodes
-                        ),
-                    };
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_ary_store") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self
-                            .builder
-                            .ins()
-                            .call(func_ref, &[array, boxed_key, boxed_value]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
+                    let value = self.box_(value, trace.nodes[node.ssa_operands[2]].clone());
+                    self.internal_call_push("_rb_ary_store", &[array, key, value]);
                 }
-                OpCode::NewHash => {
-                    if let Some(Func(id)) = self.module.get_name("_rb_hash_new") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
-                }
+                OpCode::NewHash => self.internal_call_push("_rb_hash_new", &[]),
                 OpCode::HashSet => {
                     let hash = self.ssa_values[node.ssa_operands[0]];
                     let key = self.ssa_values[node.ssa_operands[1]];
                     let value = self.ssa_values[node.ssa_operands[2]];
-
-                    let boxed_key = match trace.nodes[node.ssa_operands[1]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(key, builder)
-                        }
-                        IrType::Yarv(_) => key,
-                        _ => panic!(
-                            "unexpect key type in HashSet: {:#?} \n {:#?}",
-                            trace.nodes[node.ssa_operands[1]].type_, trace.nodes
-                        ),
-                    };
-
-                    let boxed_value = match trace.nodes[node.ssa_operands[2]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(value, builder)
-                        }
-                        IrType::Yarv(_) => value,
-                        _ => panic!(
-                            "unexpect value type in HashSet: {:#?}",
-                            trace.nodes[node.ssa_operands[2]].type_
-                        ),
-                    };
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_hash_aset") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self
-                            .builder
-                            .ins()
-                            .call(func_ref, &[hash, boxed_key, boxed_value]);
-                        let _result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(hash);
-                    } else {
-                        panic!("function not found!");
-                    }
+                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
+                    let value = self.box_(value, trace.nodes[node.ssa_operands[2]].clone());
+                    self.internal_call("_rb_hash_aset", &[hash, key, value]);
+                    self.ssa_values.push(hash);
                 }
                 OpCode::HashGet => {
                     let hash = self.ssa_values[node.ssa_operands[0]];
-                    let maybe_unboxed = self.ssa_values[node.ssa_operands[1]];
-
-                    let boxed_object = match trace.nodes[node.ssa_operands[1]].type_ {
-                        IrType::Internal(InternalType::I64) => {
-                            let builder = &mut self.builder;
-                            i64_2_value!(maybe_unboxed, builder)
-                        }
-                        IrType::Yarv(_) => maybe_unboxed,
-                        _ => panic!(
-                            "unexpected type in HashGet: {:#?}",
-                            trace.nodes[node.ssa_operands[1]].type_
-                        ),
-                    };
-
-                    if let Some(Func(id)) = self.module.get_name("_rb_hash_aref") {
-                        let func_ref = self.module.declare_func_in_func(id, self.builder.func);
-                        let call = self.builder.ins().call(func_ref, &[hash, boxed_object]);
-                        let result = self.builder.inst_results(call)[0];
-                        self.ssa_values.push(result);
-                    } else {
-                        panic!("function not found!");
-                    }
-                }
-                Snapshot(snapshot) => {
-                    match snapshot.self_ {
-                        SsaOrValue::Ssa(reference) => {}
-                        SsaOrValue::Value(_) => {}
-                    }
-                    self.ssa_values
-                        .push(self.builder.ins().iconst(I64, 0 as i64));
+                    let key = self.ssa_values[node.ssa_operands[1]];
+                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
+                    self.internal_call_push("_rb_hash_aref", &[hash, key]);
                 }
                 _ => panic!("NYI: {:?}", node.opcode),
             };
+        }
+    }
+
+    fn putnil(&mut self) {
+        self.ssa_values
+            .push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
+    }
+
+    fn putfixnum(&mut self, n: i64) {
+        self.ssa_values.push(self.builder.ins().iconst(I64, n));
+    }
+
+    fn binary_op(&mut self, node: &IrNode) {
+        let a = self.ssa_values[node.ssa_operands[0]];
+        let b = self.ssa_values[node.ssa_operands[1]];
+        let result = match node.opcode {
+            OpCode::Yarv(vm::OpCode::opt_plus) => self.builder.ins().iadd(a, b),
+            OpCode::Yarv(vm::OpCode::opt_lt) => self.builder.ins().icmp(IntCC::SignedLessThan, a, b),
+            OpCode::Yarv(vm::OpCode::opt_eq) => self.builder.ins().icmp(IntCC::Equal, a, b),
+            _ => panic!(),
+        };
+        self.ssa_values.push(result);
+    }
+
+    fn internal_call_push(&mut self, symbol: &str, args: &[cranelift::prelude::Value]) {
+        let result = self.internal_call(symbol, args);
+        self.ssa_values.push(result);
+    }
+
+    fn internal_call(&mut self, symbol: &str, args: &[cranelift::prelude::Value]) -> cranelift::prelude::Value {
+        if let Some(Func(id)) = self.module.get_name(symbol) {
+            let func_ref = self.module.declare_func_in_func(id, self.builder.func);
+            let call = self.builder.ins().call(func_ref, args);
+            self.builder.inst_results(call)[0]
+        } else {
+            panic!("function not found!");
+        }
+    }
+
+    fn unbox(&mut self, boxed: cranelift::prelude::Value, node: IrNode) -> cranelift::prelude::Value {
+        match node.type_ {
+            //putobject might be a Fixnum but the node type is I64
+            IrType::Yarv(ValueType::Fixnum) | IrType::Internal(InternalType::I64) => {
+                let builder = &mut self.builder;
+                value_2_i64!(boxed, builder)
+            }
+            IrType::Yarv(_) => boxed,
+            _ => panic!(),
+        }
+    }
+
+    fn box_(&mut self, unboxed: cranelift::prelude::Value, node: IrNode) -> cranelift::prelude::Value {
+        let builder = &mut self.builder;
+        match node.type_ {
+            IrType::Internal(InternalType::I64) => i64_2_value!(unboxed, builder),
+            IrType::Internal(InternalType::Bool) => b1_2_value!(unboxed, builder),
+            IrType::Yarv(_) | IrType::Internal(InternalType::Value) => unboxed,
+            _ => panic!(),
         }
     }
 }

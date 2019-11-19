@@ -27,7 +27,6 @@ use hyperdrive_ruby::*;
 
 #[cfg(cargo_c)]
 pub use capi::*;
-use ir::OpCode;
 pub use recorder::*;
 pub use trace::*;
 pub use vm::*;
@@ -70,12 +69,8 @@ lazy_static! {
         module
             .declare_function("_rb_ary_resurrect", Linkage::Import, &sig)
             .unwrap();
-        module
-            .declare_function("_rb_ary_push", Linkage::Import, &sig2)
-            .unwrap();
-        module
-            .declare_function("_rb_ary_new", Linkage::Import, &sig3)
-            .unwrap();
+        module.declare_function("_rb_ary_push", Linkage::Import, &sig2).unwrap();
+        module.declare_function("_rb_ary_new", Linkage::Import, &sig3).unwrap();
         module
             .declare_function("_rb_ary_aref1", Linkage::Import, &sig2)
             .unwrap();
@@ -88,9 +83,7 @@ lazy_static! {
         module
             .declare_function("_rb_hash_aset", Linkage::Import, &sig4)
             .unwrap();
-        module
-            .declare_function("_rb_hash_new", Linkage::Import, &sig3)
-            .unwrap();
+        module.declare_function("_rb_hash_new", Linkage::Import, &sig3).unwrap();
         module
             .declare_function("_rb_str_strlen", Linkage::Import, &sig)
             .unwrap();
@@ -128,12 +121,7 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
-                let exit_pc = trace_function(
-                    thread.get_thread_ptr(),
-                    thread.get_ep(),
-                    thread.get_sp_ptr(),
-                );
-                let value: vm::Value = unsafe { *thread.get_sp().offset(-1) }.into();
+                let exit_pc = trace_function(thread.get_thread_ptr(), thread.get_ep(), thread.get_sp_ptr());
                 thread.set_pc(exit_pc - 8); //the width of the hot_loop instruction
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
