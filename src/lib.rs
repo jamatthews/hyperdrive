@@ -134,10 +134,6 @@ fn trace_dispatch(thread: Thread) {
                     thread.get_sp_ptr(),
                 );
                 let value: vm::Value = unsafe { *thread.get_sp().offset(-1) }.into();
-                // println!("stack: {:#?}", value.type_());
-                // println!("pc: {:#?}", pc);
-                // println!("exit_pc: {:#?}", exit_pc);
-                // println!("exiting into: {:#?}", Instruction::new((exit_pc)as *const VALUE).opcode());
                 thread.set_pc(exit_pc - 8); //the width of the hot_loop instruction
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
@@ -161,8 +157,6 @@ fn trace_record_instruction(thread: Thread) {
             Ok(true) => {
                 let mut trace = Trace::new(recorder.nodes.clone(), thread.clone());
                 trace.peel();
-                println!("{:#?}", trace);
-                //println!("{}", trace.preview(&mut hyperdrive.module));
                 trace.compile(&mut hyperdrive.module);
                 hyperdrive.trace_heads.insert(trace.anchor, trace);
                 hyperdrive.mode = Mode::Normal;

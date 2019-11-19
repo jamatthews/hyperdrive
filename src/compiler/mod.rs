@@ -69,15 +69,13 @@ impl<'a> Compiler<'a> {
             })
             .expect("no LOOP opcode");
 
-        //println!("loop start: {}", partition);
-
-        //self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
 
         let loop_start = self.builder.create_ebb();
         self.builder.ins().jump(loop_start, &[]);
         self.builder.switch_to_block(loop_start);
 
-        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
+        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
         self.builder.ins().jump(loop_start, &[]);
     }
 
