@@ -91,10 +91,10 @@ impl<'a> Compiler<'a> {
         for node in nodes.iter() {
             match &node.opcode {
                 OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
-                    self.putnil()
+                    self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }
-                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putfixnum(1),
-                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => self.putfixnum(0),
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),
+                OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => self.putconstant(0),
                 OpCode::Yarv(vm::OpCode::opt_plus) => self.binary_op(node),
                 OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
@@ -114,8 +114,7 @@ impl<'a> Compiler<'a> {
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::putstring) => {
-                    let str_pointer = node.operands[0];
-                    self.ssa_values.push(self.builder.ins().iconst(I64, str_pointer as i64));
+                    self.putconstant(node.operands[0] as i64);
                 }
                 OpCode::Yarv(vm::OpCode::putobject) => {
                     let boxed = node.operands[0];
@@ -243,12 +242,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn putnil(&mut self) {
-        self.ssa_values
-            .push(self.builder.ins().iconst(I64, ruby_special_consts_RUBY_Qnil as i64));
-    }
-
-    fn putfixnum(&mut self, n: i64) {
+    fn putconstant(&mut self, n: i64) {
         self.ssa_values.push(self.builder.ins().iconst(I64, n));
     }
 
@@ -275,7 +269,7 @@ impl<'a> Compiler<'a> {
             let call = self.builder.ins().call(func_ref, args);
             self.builder.inst_results(call)[0]
         } else {
-            panic!("function not found!");
+            panic!("internal call for {} failed: x  function not found!");
         }
     }
 
