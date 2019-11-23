@@ -5,7 +5,7 @@ impl Recorder {
         let key = self.stack_pop();
         let collection = self.stack_pop();
 
-        let opcode = match self.nodes[collection].type_.clone() {
+        let opcode = match &self.nodes[collection].type_ {
             IrType::Yarv(ValueType::Array) => ir::OpCode::ArrayGet,
             IrType::Yarv(ValueType::Hash) => ir::OpCode::HashGet,
             _ => panic!(),

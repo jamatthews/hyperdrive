@@ -5,7 +5,7 @@ impl Recorder {
         let object = self.stack_pop();
         let receiver = self.stack_pop();
 
-        match self.nodes[receiver].type_.clone() {
+        match &self.nodes[receiver].type_ {
             IrType::Yarv(ValueType::Array) => {
                 self.nodes.push(IrNode {
                     type_: IrType::Yarv(ValueType::Array),

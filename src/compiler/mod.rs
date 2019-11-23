@@ -99,14 +99,14 @@ impl<'a> Compiler<'a> {
                 OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
-                    let unboxed = self.unbox(boxed, node.clone());
+                    let unboxed = self.unbox(boxed, &node);
                     self.ssa_values.push(unboxed);
                 }
                 OpCode::Yarv(vm::OpCode::setlocal_WC_0) => {
                     let offset = -8 * node.operands[0] as i32;
                     let ssa_ref = node.ssa_operands[0];
                     let unboxed = self.ssa_values[ssa_ref];
-                    let boxed = self.box_(unboxed, trace.nodes[ssa_ref].clone());
+                    let boxed = self.box_(unboxed, &trace.nodes[ssa_ref]);
 
                     self.builder.ins().store(MemFlags::new(), boxed, ep, offset);
 
@@ -119,7 +119,7 @@ impl<'a> Compiler<'a> {
                 OpCode::Yarv(vm::OpCode::putobject) => {
                     let boxed = node.operands[0];
                     let boxed = self.builder.ins().iconst(I64, boxed as i64);
-                    let unboxed = self.unbox(boxed, node.clone());
+                    let unboxed = self.unbox(boxed, &node);
                     self.ssa_values.push(unboxed);
                 }
                 OpCode::Yarv(vm::OpCode::opt_lt) => self.binary_op(node),
@@ -144,7 +144,7 @@ impl<'a> Compiler<'a> {
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
                         let address = self.builder.ins().iconst(I64, trace.sp_base as i64);
-                        let boxed = self.box_(self.ssa_values[*ssa_ref], trace.nodes[*ssa_ref].clone());
+                        let boxed = self.box_(self.ssa_values[*ssa_ref], &trace.nodes[*ssa_ref]);
                         self.builder
                             .ins()
                             .store(MemFlags::new(), boxed, address, *offset as i32);
@@ -203,22 +203,22 @@ impl<'a> Compiler<'a> {
                 OpCode::ArrayAppend => {
                     let array = self.ssa_values[node.ssa_operands[0]];
                     let unboxed = self.ssa_values[node.ssa_operands[1]];
-                    let boxed = self.box_(unboxed, trace.nodes[node.ssa_operands[1]].clone());
+                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands[1]]);
                     self.internal_call_push("_rb_ary_push", &[array, boxed]);
                 }
                 OpCode::NewArray => self.internal_call_push("_rb_ary_new", &[]),
                 OpCode::ArrayGet => {
                     let array = self.ssa_values[node.ssa_operands[0]];
                     let unboxed = self.ssa_values[node.ssa_operands[1]];
-                    let boxed = self.box_(unboxed, trace.nodes[node.ssa_operands[1]].clone());
+                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands[1]]);
                     self.internal_call_push("_rb_ary_aref1", &[array, boxed]);
                 }
                 OpCode::ArraySet => {
                     let array = self.ssa_values[node.ssa_operands[0]];
                     let key = self.ssa_values[node.ssa_operands[1]];
                     let value = self.ssa_values[node.ssa_operands[2]];
-                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
-                    let value = self.box_(value, trace.nodes[node.ssa_operands[2]].clone());
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
+                    let value = self.box_(value, &trace.nodes[node.ssa_operands[2]]);
                     self.internal_call_push("_rb_ary_store", &[array, key, value]);
                 }
                 OpCode::NewHash => self.internal_call_push("_rb_hash_new", &[]),
@@ -226,15 +226,15 @@ impl<'a> Compiler<'a> {
                     let hash = self.ssa_values[node.ssa_operands[0]];
                     let key = self.ssa_values[node.ssa_operands[1]];
                     let value = self.ssa_values[node.ssa_operands[2]];
-                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
-                    let value = self.box_(value, trace.nodes[node.ssa_operands[2]].clone());
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
+                    let value = self.box_(value, &trace.nodes[node.ssa_operands[2]]);
                     self.internal_call("_rb_hash_aset", &[hash, key, value]);
                     self.ssa_values.push(hash);
                 }
                 OpCode::HashGet => {
                     let hash = self.ssa_values[node.ssa_operands[0]];
                     let key = self.ssa_values[node.ssa_operands[1]];
-                    let key = self.box_(key, trace.nodes[node.ssa_operands[1]].clone());
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
                     self.internal_call_push("_rb_hash_aref", &[hash, key]);
                 }
                 _ => panic!("NYI: {:?}", node.opcode),
@@ -273,7 +273,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn unbox(&mut self, boxed: cranelift::prelude::Value, node: IrNode) -> cranelift::prelude::Value {
+    fn unbox(&mut self, boxed: cranelift::prelude::Value, node: &IrNode) -> cranelift::prelude::Value {
         match node.type_ {
             //putobject might be a Fixnum but the node type is I64
             IrType::Yarv(ValueType::Fixnum) | IrType::Internal(InternalType::I64) => {
@@ -285,7 +285,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn box_(&mut self, unboxed: cranelift::prelude::Value, node: IrNode) -> cranelift::prelude::Value {
+    fn box_(&mut self, unboxed: cranelift::prelude::Value, node: &IrNode) -> cranelift::prelude::Value {
         let builder = &mut self.builder;
         match node.type_ {
             IrType::Internal(InternalType::I64) => i64_2_value!(unboxed, builder),
