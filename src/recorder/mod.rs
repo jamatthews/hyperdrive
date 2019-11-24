@@ -31,8 +31,8 @@ pub struct Recorder {
     pub nodes: IrNodes,
     pub anchor: u64,
     stack: HashMap<isize, SsaRef>,
-    sp_base: *const u64,
-    sp_offset: isize,
+    ep: *const u64,
+    sp: isize,
 }
 
 impl Recorder {
@@ -41,17 +41,17 @@ impl Recorder {
             nodes: vec![],
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
-            sp_base: thread.get_sp(),
-            sp_offset: 0,
+            ep: thread.get_ep(),
+            sp: 1, //in YARV the EP points one above the operand stack
         }
     }
 
     fn stack_pop(&mut self) -> SsaRef {
-        self.sp_offset -= 1;
-        let ret = match self.stack.remove(&self.sp_offset) {
+        self.sp -= 1;
+        let ret = match self.stack.remove(&self.sp) {
             Some(ssa_ref) => ssa_ref,
             None => {
-                let value: Value = unsafe { *self.sp_base.offset(-1 * self.sp_offset) }.into();
+                let value: Value = unsafe { *self.ep.offset(self.sp) }.into();
                 self.nodes.push(IrNode {
                     type_: IrType::Yarv(value.type_()),
                     opcode: ir::OpCode::StackLoad,
@@ -65,8 +65,8 @@ impl Recorder {
     }
 
     fn stack_push(&mut self, ssa_ref: SsaRef) {
-        self.stack.insert(self.sp_offset, ssa_ref);
-        self.sp_offset += 1;
+        self.stack.insert(self.sp, ssa_ref);
+        self.sp += 1;
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {

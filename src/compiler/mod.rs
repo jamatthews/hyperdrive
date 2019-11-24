@@ -143,11 +143,10 @@ impl<'a> Compiler<'a> {
                     self.builder.switch_to_block(side_exit_block);
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
-                        let address = self.builder.ins().iconst(I64, trace.sp_base as i64);
                         let boxed = self.box_(self.ssa_values[*ssa_ref], &trace.nodes[*ssa_ref]);
                         self.builder
                             .ins()
-                            .store(MemFlags::new(), boxed, address, *offset as i32);
+                            .store(MemFlags::new(), boxed, ep, *offset as i32);
                     }
 
                     let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
