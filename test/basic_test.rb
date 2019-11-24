@@ -37,11 +37,14 @@ class BasicTest < Minitest::Test
     trace_count = Hyperdrive.trace_count
     i = 0
     x = 0
+    y = 0
     while i < 2000
       x = 1000
+      y = 10000
       i = i + 1
     end
     assert_equal 1000, x
+    assert_equal 10000, y
     assert_equal Hyperdrive.trace_count, trace_count + 1
   end
 

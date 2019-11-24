@@ -11,5 +11,7 @@ impl Recorder {
             operands: vec![offset],
             ssa_operands: vec![popped],
         });
+
+        self.set_local(offset as isize * -8, popped);
     }
 }
