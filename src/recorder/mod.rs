@@ -42,7 +42,7 @@ impl Recorder {
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
             ep: thread.get_ep(),
-            sp: 1, //in YARV the EP points one above the operand stack
+            sp: (thread.get_sp() as u64 - thread.get_ep() as u64) as isize, //keep SP as relative so we can restore relative to EP
         }
     }
 
