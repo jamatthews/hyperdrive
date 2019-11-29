@@ -90,35 +90,11 @@ impl Trace {
             operands: vec![],
             ssa_operands: vec![],
         });
+        let offset = peeled.len() + 1;
         for node in &peeled {
             let opcode = match &node.opcode {
-                ir::OpCode::Guard(type_, original) => {
-                    let mut updated = HashMap::new();
-                    for (offset, ssa_ref) in original.stack_map.iter() {
-                        updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
-                    }
-                    ir::OpCode::Guard(
-                        type_.clone(),
-                        Snapshot {
-                            pc: original.pc,
-                            sp: original.sp,
-                            self_: original.self_.clone(),
-                            stack_map: updated,
-                        },
-                    )
-                }
-                ir::OpCode::Snapshot(original) => {
-                    let mut updated = HashMap::new();
-                    for (offset, ssa_ref) in original.stack_map.iter() {
-                        updated.insert(offset.clone(), ssa_ref + peeled.len() + 1);
-                    }
-                    ir::OpCode::Snapshot(Snapshot {
-                        pc: original.pc,
-                        sp: original.sp,
-                        self_: original.self_.clone(),
-                        stack_map: updated,
-                    })
-                }
+                ir::OpCode::Guard(type_, snap) => ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
+                ir::OpCode::Snapshot(snap) => ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
                 op => op.clone(),
             };
             self.nodes.push(IrNode {
@@ -127,6 +103,19 @@ impl Trace {
                 operands: node.operands.clone(),
                 ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),
             });
+        }
+    }
+
+    fn copy_snapshot(&self, snap: &Snapshot, bias: usize) -> Snapshot {
+        let mut updated = HashMap::new();
+        for (offset, ssa_ref) in snap.stack_map.iter() {
+            updated.insert(offset.clone(), ssa_ref + bias);
+        }
+        Snapshot {
+            pc: snap.pc,
+            sp: snap.sp,
+            self_: snap.self_.clone(),
+            stack_map: updated,
         }
     }
 }
