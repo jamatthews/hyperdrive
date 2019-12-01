@@ -144,7 +144,6 @@ fn trace_record_instruction(thread: Thread) {
         Mode::Recording(recorder) => match recorder.record_instruction(thread.clone()) {
             Ok(true) => {
                 let mut trace = Trace::new(recorder.nodes.clone(), thread.clone());
-                trace.peel();
                 trace.compile(&mut hyperdrive.module);
                 hyperdrive.trace_heads.insert(trace.anchor, trace);
                 hyperdrive.mode = Mode::Normal;

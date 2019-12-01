@@ -85,6 +85,7 @@ impl Recorder {
                 operands: vec![],
                 ssa_operands: vec![],
             });
+            self.peel();
             return Ok(true);
         }
 
@@ -128,6 +129,66 @@ impl Recorder {
             sp: thread.get_sp() as u64,
             self_: SsaOrValue::Value(thread.get_self()),
             stack_map: self.stack.clone(),
+        }
+    }
+
+    fn peel(&mut self) {
+        let peeled = self.nodes.clone();
+        self.nodes.push(IrNode {
+            type_: IrType::None,
+            opcode: ir::OpCode::Loop,
+            operands: vec![],
+            ssa_operands: vec![],
+        });
+        let offset = peeled.len() + 1;
+        for node in &peeled {
+            let opcode = match &node.opcode {
+                ir::OpCode::Guard(type_, snap) => ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
+                ir::OpCode::Snapshot(snap) => ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
+                op => op.clone(),
+            };
+            self.nodes.push(IrNode {
+                type_: node.type_.clone(),
+                opcode: opcode,
+                operands: node.operands.clone(),
+                ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),
+            });
+        }
+        self.phi(peeled.len() - 1);
+    }
+
+    fn copy_snapshot(&self, snap: &Snapshot, bias: usize) -> Snapshot {
+        let mut updated = HashMap::new();
+        for (offset, ssa_ref) in snap.stack_map.iter() {
+            updated.insert(offset.clone(), ssa_ref + bias);
+        }
+        Snapshot {
+            pc: snap.pc,
+            sp: snap.sp,
+            self_: snap.self_.clone(),
+            stack_map: updated,
+        }
+    }
+
+    pub fn phi(&mut self, idx: usize) {
+        let after = match &self.nodes.last().unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing after snapshot")
+        };
+        let before = match &self.nodes.get(idx).unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing before snapshot")
+        };
+
+        for (slot, ssa_ref) in after.iter() {
+            if before.get(slot) != Some(ssa_ref) {
+                self.nodes.push(IrNode {
+                    type_: IrType::None,
+                    opcode: ir::OpCode::Phi,
+                    operands: vec![],
+                    ssa_operands: vec![*before.get(slot).unwrap(), *ssa_ref],
+                });
+            }
         }
     }
 }
