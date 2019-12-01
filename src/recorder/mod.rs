@@ -78,6 +78,13 @@ impl Recorder {
         let opcode = instruction.opcode();
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
+            let snapshot = self.snapshot(thread);
+            self.nodes.push(IrNode {
+                type_: IrType::None,
+                opcode: ir::OpCode::Snapshot(snapshot),
+                operands: vec![],
+                ssa_operands: vec![],
+            });
             return Ok(true);
         }
 

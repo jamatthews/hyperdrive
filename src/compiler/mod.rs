@@ -90,7 +90,7 @@ impl<'a> Compiler<'a> {
     ) {
         for node in nodes.iter() {
             match &node.opcode {
-                OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
+                OpCode::Phi | OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),

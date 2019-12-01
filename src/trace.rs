@@ -9,6 +9,7 @@ use ir::*;
 use std::collections::HashMap;
 use std::fmt;
 use std::mem::transmute;
+use vm;
 use vm::*;
 
 use compiler::Compiler;
@@ -104,6 +105,7 @@ impl Trace {
                 ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),
             });
         }
+        self.phi(peeled.len() - 1);
     }
 
     fn copy_snapshot(&self, snap: &Snapshot, bias: usize) -> Snapshot {
@@ -116,6 +118,28 @@ impl Trace {
             sp: snap.sp,
             self_: snap.self_.clone(),
             stack_map: updated,
+        }
+    }
+
+    pub fn phi(&mut self, idx: usize) {
+        let after = match &self.nodes.last().unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing after snapshot")
+        };
+        let before = match &self.nodes.get(idx).unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing before snapshot")
+        };
+
+        for (slot, ssa_ref) in after.iter() {
+            if before.get(slot) != Some(ssa_ref) {
+                self.nodes.push(IrNode {
+                    type_: IrType::None,
+                    opcode: ir::OpCode::Phi,
+                    operands: vec![],
+                    ssa_operands: vec![*before.get(slot).unwrap(), *ssa_ref],
+                });
+            }
         }
     }
 }

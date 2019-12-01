@@ -38,6 +38,7 @@ pub struct Snapshot {
 #[derive(Clone, Debug)]
 pub enum OpCode {
     Loop, //marks the end of the prelude and start of the loop body
+    Phi,
     Yarv(vm::OpCode),
     Snapshot(Snapshot),
     StackLoad,
