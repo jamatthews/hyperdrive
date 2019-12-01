@@ -147,14 +147,18 @@ impl Recorder {
         });
         let offset = peeled.len() + 1;
         for node in &peeled {
-            let opcode = match &node.opcode {
-                ir::OpCode::Guard(type_, snap) => ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
-                ir::OpCode::Snapshot(snap) => ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
-                ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => ir::OpCode::Pass(*base_snap.get(&(node.operands[0] as isize * -8)).expect("missing entry in stackmap")),
-                op => op.clone(),
+            let (opcode, type_) = match &node.opcode {
+                ir::OpCode::Guard(type_, snap) => (ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)), node.type_.clone()),
+                ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_.clone()),
+                ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
+                    let offset = node.operands[0] as isize * -8;
+                    let ssa_ref = *base_snap.get(&offset).expect(&format!("missing entry in stackmap for: {}", offset));
+                    (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_.clone())
+                },
+                op => (op.clone(), node.type_.clone()),
             };
             self.nodes.push(IrNode {
-                type_: node.type_.clone(),
+                type_: type_,
                 opcode: opcode,
                 operands: node.operands.clone(),
                 ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),

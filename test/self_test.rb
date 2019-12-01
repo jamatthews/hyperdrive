@@ -1,6 +1,6 @@
 require "test_helper"
 
-class BasicTest < Minitest::Test
+class SelfTest < Minitest::Test
   Array.class_eval do
     def a_method
       self[1]
