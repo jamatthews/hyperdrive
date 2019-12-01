@@ -85,6 +85,10 @@ impl Trace {
 
     pub fn peel(&mut self) {
         let peeled = self.nodes.clone();
+        let base_snap = match &self.nodes.last().unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing after snapshot")
+        };
         self.nodes.push(IrNode {
             type_: IrType::None,
             opcode: ir::OpCode::Loop,
@@ -96,6 +100,8 @@ impl Trace {
             let opcode = match &node.opcode {
                 ir::OpCode::Guard(type_, snap) => ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
                 ir::OpCode::Snapshot(snap) => ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
+                //problem here: replacing setlocal followed by getlocal won't respect the setlocal because we don't have the stack map
+                ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => ir::OpCode::Pass(*base_snap.get(&(node.operands[0] as isize * -8)).expect("missing stack map for repeated getlocal")),
                 op => op.clone(),
             };
             self.nodes.push(IrNode {
