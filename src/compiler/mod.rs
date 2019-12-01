@@ -72,15 +72,21 @@ impl<'a> Compiler<'a> {
         let loop_start = self.builder.create_ebb();
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode == OpCode::Phi).collect();
 
-        for _ in 0..phis.len() {
-            self.builder.append_ebb_param(loop_start, I64);
-        }
-
+        // take all the SSA Values from the prelude to put into the first call of the repeating block
         let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[0]).map(|r| self.ssa_values[r]).collect();
         self.builder.ins().jump(loop_start, &phi_params);
+
+        //put the EBB params into ssa_values[i] so we actually use the param (which is initially the value anyway)
+        for (i, node) in phis.iter().enumerate() {
+            self.builder.append_ebb_param(loop_start, I64);
+            let replacing = node.ssa_operands[0];
+            self.ssa_values[replacing] = self.builder.ebb_params(loop_start)[i];
+        }
         self.builder.switch_to_block(loop_start);
 
         self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
+
+        //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[1]).map(|r| self.ssa_values[r]).collect();
         self.builder.ins().jump(loop_start, &phi_params);
     }
@@ -98,6 +104,10 @@ impl<'a> Compiler<'a> {
     ) {
         for node in nodes.iter() {
             match &node.opcode {
+                OpCode::Pass(ssa_ref) => {
+                    let passthrough = self.ssa_values[*ssa_ref];
+                    self.ssa_values.push(passthrough);
+                }
                 OpCode::Phi | OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }
