@@ -24,6 +24,7 @@ use ir::*;
 use std::collections::HashMap;
 use trace::IrNodes;
 use vm::OpCode;
+use vm;
 use vm::*;
 
 #[derive(Clone, Debug)]
@@ -134,6 +135,10 @@ impl Recorder {
 
     fn peel(&mut self) {
         let peeled = self.nodes.clone();
+        let base_snap = match &self.nodes.last().unwrap().opcode {
+            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+            _ => panic!("missing base snapshot")
+        };
         self.nodes.push(IrNode {
             type_: IrType::None,
             opcode: ir::OpCode::Loop,
@@ -145,6 +150,7 @@ impl Recorder {
             let opcode = match &node.opcode {
                 ir::OpCode::Guard(type_, snap) => ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
                 ir::OpCode::Snapshot(snap) => ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
+                ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => ir::OpCode::Pass(*base_snap.get(&(node.operands[0] as isize * -8)).expect("missing entry in stackmap")),
                 op => op.clone(),
             };
             self.nodes.push(IrNode {
