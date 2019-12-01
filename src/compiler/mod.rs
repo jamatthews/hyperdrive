@@ -70,11 +70,19 @@ impl<'a> Compiler<'a> {
         self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
 
         let loop_start = self.builder.create_ebb();
-        self.builder.ins().jump(loop_start, &[]);
+        let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode == OpCode::Phi).collect();
+
+        for _ in 0..phis.len() {
+            self.builder.append_ebb_param(loop_start, I64);
+        }
+
+        let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[0]).map(|r| self.ssa_values[r]).collect();
+        self.builder.ins().jump(loop_start, &phi_params);
         self.builder.switch_to_block(loop_start);
 
         self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
-        self.builder.ins().jump(loop_start, &[]);
+        let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[1]).map(|r| self.ssa_values[r]).collect();
+        self.builder.ins().jump(loop_start, &phi_params);
     }
 
     pub fn preview(&mut self) -> Result<String, String> {

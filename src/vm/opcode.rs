@@ -6,7 +6,7 @@ use hyperdrive_ruby::VALUE;
 
 #[allow(non_camel_case_types)]
 #[repr(i32)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OpCode {
     nop,
     getlocal,

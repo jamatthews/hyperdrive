@@ -13,21 +13,21 @@ pub struct IrNode {
     pub ssa_operands: Vec<usize>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum IrType {
     Yarv(ValueType),
     Internal(InternalType),
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum InternalType {
     I64,
     Bool,
     Value,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
     pub pc: u64,
     pub sp: u64,
@@ -35,7 +35,7 @@ pub struct Snapshot {
     pub stack_map: HashMap<isize, SsaRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OpCode {
     Loop, //marks the end of the prelude and start of the loop body
     Phi,
@@ -52,7 +52,7 @@ pub enum OpCode {
     HashGet,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SsaOrValue {
     Ssa(usize),
     Value(VALUE),
