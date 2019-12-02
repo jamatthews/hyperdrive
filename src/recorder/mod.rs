@@ -70,10 +70,6 @@ impl Recorder {
         self.sp += 1;
     }
 
-    fn set_local(&mut self, offset: isize, ssa_ref: SsaRef) {
-        self.stack.insert(offset, ssa_ref);
-    }
-
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
