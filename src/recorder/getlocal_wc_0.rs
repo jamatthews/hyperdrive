@@ -10,7 +10,7 @@ impl Recorder {
             None => {
                 let type_ = match value.type_() {
                     ValueType::Fixnum => IrType::Internal(InternalType::I64),
-                    x => IrType::Yarv(x)
+                    x => IrType::Yarv(x),
                 };
                 self.nodes.push(IrNode {
                     type_: type_,
@@ -21,7 +21,7 @@ impl Recorder {
                 self.stack.insert(offset as isize * -8, self.nodes.len() - 1);
                 self.nodes.len() - 1
             }
-        } ;
+        };
         self.stack_push(ssa_ref);
     }
 }

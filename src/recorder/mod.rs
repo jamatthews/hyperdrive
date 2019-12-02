@@ -23,8 +23,8 @@ use ir;
 use ir::*;
 use std::collections::HashMap;
 use trace::IrNodes;
-use vm::OpCode;
 use vm;
+use vm::OpCode;
 use vm::*;
 
 #[derive(Clone, Debug)]
@@ -137,7 +137,7 @@ impl Recorder {
         let peeled = self.nodes.clone();
         let base_snap = match &self.nodes.last().unwrap().opcode {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
-            _ => panic!("missing base snapshot")
+            _ => panic!("missing base snapshot"),
         };
         self.nodes.push(IrNode {
             type_: IrType::None,
@@ -148,13 +148,21 @@ impl Recorder {
         let offset = peeled.len() + 1;
         for node in &peeled {
             let (opcode, type_) = match &node.opcode {
-                ir::OpCode::Guard(type_, snap) => (ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)), node.type_.clone()),
-                ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_.clone()),
+                ir::OpCode::Guard(type_, snap) => (
+                    ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
+                    node.type_.clone(),
+                ),
+                ir::OpCode::Snapshot(snap) => (
+                    ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
+                    node.type_.clone(),
+                ),
                 ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
                     let offset = node.operands[0] as isize * -8;
-                    let ssa_ref = *base_snap.get(&offset).expect(&format!("missing entry in stackmap for: {}", offset));
+                    let ssa_ref = *base_snap
+                        .get(&offset)
+                        .expect(&format!("missing entry in stackmap for: {}", offset));
                     (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_.clone())
-                },
+                }
                 op => (op.clone(), node.type_.clone()),
             };
             self.nodes.push(IrNode {
@@ -183,11 +191,11 @@ impl Recorder {
     pub fn phi(&mut self, idx: usize) {
         let after = match &self.nodes.last().unwrap().opcode {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
-            _ => panic!("missing after snapshot")
+            _ => panic!("missing after snapshot"),
         };
         let before = match &self.nodes.get(idx).unwrap().opcode {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
-            _ => panic!("missing before snapshot")
+            _ => panic!("missing before snapshot"),
         };
 
         for (slot, ssa_ref) in after.iter() {

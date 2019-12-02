@@ -73,7 +73,11 @@ impl<'a> Compiler<'a> {
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode == OpCode::Phi).collect();
 
         // take all the SSA Values from the prelude to put into the first call of the repeating block
-        let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[0]).map(|r| self.ssa_values[r]).collect();
+        let phi_params: Vec<_> = phis
+            .iter()
+            .map(|n| n.ssa_operands[0])
+            .map(|r| self.ssa_values[r])
+            .collect();
         self.builder.ins().jump(loop_start, &phi_params);
 
         //put the EBB params into ssa_values[i] so we actually use the param (which is initially the value anyway)
@@ -87,7 +91,11 @@ impl<'a> Compiler<'a> {
         self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
 
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
-        let phi_params: Vec<_> = phis.iter().map(|n| n.ssa_operands[1]).map(|r| self.ssa_values[r]).collect();
+        let phi_params: Vec<_> = phis
+            .iter()
+            .map(|n| n.ssa_operands[1])
+            .map(|r| self.ssa_values[r])
+            .collect();
         self.builder.ins().jump(loop_start, &phi_params);
     }
 
@@ -108,7 +116,11 @@ impl<'a> Compiler<'a> {
                     let passthrough = self.ssa_values[*ssa_ref];
                     self.ssa_values.push(passthrough);
                 }
-                OpCode::Phi | OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putself) | OpCode::Yarv(vm::OpCode::putnil) => {
+                OpCode::Phi
+                | OpCode::Loop
+                | Snapshot(_)
+                | OpCode::Yarv(vm::OpCode::putself)
+                | OpCode::Yarv(vm::OpCode::putnil) => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),
@@ -162,9 +174,7 @@ impl<'a> Compiler<'a> {
 
                     for (offset, ssa_ref) in snapshot.stack_map.iter() {
                         let boxed = self.box_(self.ssa_values[*ssa_ref], &trace.nodes[*ssa_ref]);
-                        self.builder
-                            .ins()
-                            .store(MemFlags::new(), boxed, ep, *offset as i32);
+                        self.builder.ins().store(MemFlags::new(), boxed, ep, *offset as i32);
                     }
 
                     let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
