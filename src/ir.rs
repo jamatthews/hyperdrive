@@ -40,6 +40,7 @@ pub enum OpCode {
     Loop, //marks the end of the prelude and start of the loop body
     Phi,
     Pass(SsaRef),
+    LoadSelf,
     Yarv(vm::OpCode),
     Snapshot(Snapshot),
     StackLoad(isize),

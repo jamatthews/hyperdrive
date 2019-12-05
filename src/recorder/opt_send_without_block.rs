@@ -3,12 +3,12 @@ use super::*;
 use hyperdrive_ruby::rb_method_type_t_VM_METHOD_TYPE_CFUNC;
 
 impl Recorder {
-    pub fn record_opt_send_without_block(&mut self, thread: Thread, instruction: Instruction) {
-        let receiver = self.stack_pop();
+    pub fn record_opt_send_without_block(&mut self, _thread: Thread, instruction: Instruction) {
+        let call_info = CallInfo::new(instruction.get_operand(0) as *const _);
         let call_cache = CallCache::new(instruction.get_operand(1) as *const _);
-        let snapshot = self.snapshot(thread);
 
         if call_cache.get_type() == rb_method_type_t_VM_METHOD_TYPE_CFUNC {
+            let receiver = self.stack_peek();
             self.nodes.push(IrNode {
                 type_: IrType::Internal(InternalType::Value),
                 opcode: ir::OpCode::Yarv(instruction.opcode()),
@@ -17,13 +17,8 @@ impl Recorder {
             });
             self.stack_push(self.nodes.len() - 1);
         } else {
-            self.nodes.push(IrNode {
-                type_: IrType::None,
-                opcode: ir::OpCode::Snapshot(snapshot),
-                operands: vec![],
-                ssa_operands: vec![],
-            });
-            self.stack_push(receiver);
+            let receiver = self.stack_n(call_info.get_orig_argc() as usize);
+            self.call_stack.push(receiver);
         }
     }
 }

@@ -57,6 +57,7 @@ impl<'a> Compiler<'a> {
         let _thread = self.builder.ebb_params(entry_block)[0];
         let ep = self.builder.ebb_params(entry_block)[1];
         let sp_ptr = self.builder.ebb_params(entry_block)[2];
+        let self_ = self.builder.ebb_params(entry_block)[3];
 
         let partition = trace
             .nodes
@@ -67,7 +68,7 @@ impl<'a> Compiler<'a> {
             })
             .expect("no LOOP opcode");
 
-        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr);
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr, self_);
 
         let loop_start = self.builder.create_ebb();
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode == OpCode::Phi).collect();
@@ -88,7 +89,7 @@ impl<'a> Compiler<'a> {
         }
         self.builder.switch_to_block(loop_start);
 
-        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr);
+        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr, self_);
 
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis
@@ -109,9 +110,13 @@ impl<'a> Compiler<'a> {
         trace: Trace,
         ep: cranelift::prelude::Value,
         sp_ptr: cranelift::prelude::Value,
+        self_: cranelift::prelude::Value
     ) {
         for node in nodes.iter() {
             match &node.opcode {
+                OpCode::LoadSelf => {
+                    self.ssa_values.push(self_);
+                }
                 OpCode::Pass(ssa_ref) => {
                     let passthrough = self.ssa_values[*ssa_ref];
                     self.ssa_values.push(passthrough);
@@ -119,7 +124,6 @@ impl<'a> Compiler<'a> {
                 OpCode::Phi
                 | OpCode::Loop
                 | Snapshot(_)
-                | OpCode::Yarv(vm::OpCode::putself)
                 | OpCode::Yarv(vm::OpCode::putnil) => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }

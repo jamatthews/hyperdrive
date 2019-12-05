@@ -35,18 +35,39 @@ pub struct Recorder {
     base_ep: *const u64,
     sp: isize,
     ep: isize,
+    call_stack: Vec<SsaRef>,
 }
 
 impl Recorder {
     pub fn new(thread: Thread) -> Self {
+        //the actual object of self is loaded at execution time, but we need to load it here to add a type
+        let raw_value = thread.get_self();
+        let value: Value = raw_value.into();
+
+        let nodes = vec![ IrNode {
+                type_: IrType::Yarv(value.type_()),
+                opcode: ir::OpCode::LoadSelf,
+                operands: vec![],
+                ssa_operands: vec![],
+            }];
+
         Self {
-            nodes: vec![],
+            nodes: nodes,
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
             base_ep: thread.get_ep(),
             sp: (thread.get_sp() as u64 - thread.get_ep() as u64) as isize, //keep SP as relative so we can restore relative to EP
             ep: 0,
+            call_stack: vec![0],
         }
+    }
+
+    fn stack_n(&self, offset: usize) -> SsaRef {
+        *self.stack.get(&(self.sp - 8 - (offset * 8) as isize)).expect("stack underflow in n")
+    }
+
+    fn stack_peek(&mut self) -> SsaRef {
+        *self.stack.get(&(self.sp - 8)).expect("stack underflow in peek")
     }
 
     fn stack_pop(&mut self) -> SsaRef {
@@ -73,6 +94,8 @@ impl Recorder {
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
+        self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
@@ -117,7 +140,10 @@ impl Recorder {
             OpCode::putself => self.record_putself(thread, instruction),
             OpCode::putstring => self.record_putstring(thread, instruction),
             OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
-            OpCode::leave => {}
+            OpCode::leave => {
+                self.sp = self.sp - 2;
+                self.call_stack.pop();
+            },
             OpCode::jump => {}
             _ => return Err(format!("NYI: {:?}", opcode)),
         }

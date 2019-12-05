@@ -121,7 +121,7 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
-                let exit_pc = trace_function(thread.get_thread_ptr(), thread.get_ep(), thread.get_sp_ptr());
+                let exit_pc = trace_function(thread.get_thread_ptr(), thread.get_ep(), thread.get_sp_ptr(), thread.get_self());
                 thread.set_pc(exit_pc - 8); //the width of the hot_loop instruction
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
