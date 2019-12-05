@@ -42,7 +42,7 @@ pub enum OpCode {
     Pass(SsaRef),
     Yarv(vm::OpCode),
     Snapshot(Snapshot),
-    StackLoad,
+    StackLoad(isize),
     Guard(IrType, Snapshot),
     ArrayAppend,
     ArrayGet,

@@ -32,8 +32,9 @@ pub struct Recorder {
     pub nodes: IrNodes,
     pub anchor: u64,
     stack: HashMap<isize, SsaRef>,
-    ep: *const u64,
+    base_ep: *const u64,
     sp: isize,
+    ep: isize,
 }
 
 impl Recorder {
@@ -42,20 +43,21 @@ impl Recorder {
             nodes: vec![],
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
-            ep: thread.get_ep(),
+            base_ep: thread.get_ep(),
             sp: (thread.get_sp() as u64 - thread.get_ep() as u64) as isize, //keep SP as relative so we can restore relative to EP
+            ep: 0,
         }
     }
 
     fn stack_pop(&mut self) -> SsaRef {
-        self.sp -= 1;
+        self.sp -= 8;
         let ret = match self.stack.remove(&self.sp) {
             Some(ssa_ref) => ssa_ref,
             None => {
-                let value: Value = unsafe { *self.ep.offset(self.sp) }.into();
+                let value: Value = unsafe { *self.base_ep.offset(self.sp) }.into();
                 self.nodes.push(IrNode {
                     type_: IrType::Yarv(value.type_()),
-                    opcode: ir::OpCode::StackLoad,
+                    opcode: ir::OpCode::StackLoad(self.sp),
                     operands: vec![],
                     ssa_operands: vec![],
                 });
@@ -67,12 +69,15 @@ impl Recorder {
 
     fn stack_push(&mut self, ssa_ref: SsaRef) {
         self.stack.insert(self.sp, ssa_ref);
-        self.sp += 1;
+        self.sp += 8;
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
+
+        self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot(thread);
@@ -152,8 +157,7 @@ impl Recorder {
                     ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
                     node.type_.clone(),
                 ),
-                ir::OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
-                    let offset = node.operands[0] as isize * -8;
+                ir::OpCode::StackLoad(offset) => {
                     let ssa_ref = *base_snap
                         .get(&offset)
                         .expect(&format!("missing entry in stackmap for: {}", offset));

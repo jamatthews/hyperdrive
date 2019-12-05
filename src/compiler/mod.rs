@@ -126,9 +126,8 @@ impl<'a> Compiler<'a> {
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => self.putconstant(0),
                 OpCode::Yarv(vm::OpCode::opt_plus) => self.binary_op(node),
-                OpCode::Yarv(vm::OpCode::getlocal_WC_0) => {
-                    let offset = -8 * node.operands[0] as i32;
-                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, offset);
+                OpCode::StackLoad(offset) => {
+                    let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, *offset as i32);
                     let unboxed = self.unbox(boxed, &node);
                     self.ssa_values.push(unboxed);
                 }
