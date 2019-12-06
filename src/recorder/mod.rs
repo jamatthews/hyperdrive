@@ -227,7 +227,7 @@ impl Recorder {
         for (slot, ssa_ref) in after.iter() {
             if before.get(slot) != Some(ssa_ref) {
                 self.nodes.push(IrNode {
-                    type_: IrType::None,
+                    type_: self.nodes[*ssa_ref].type_.clone(),
                     opcode: ir::OpCode::Phi,
                     operands: vec![],
                     ssa_operands: vec![*before.get(slot).unwrap(), *ssa_ref],

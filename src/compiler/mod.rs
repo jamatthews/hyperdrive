@@ -1,3 +1,4 @@
+use cranelift_codegen::ir::types::B1;
 use cranelift::prelude::*;
 use cranelift_codegen::ir::types::I64;
 use cranelift_codegen::isa::CallConv;
@@ -83,7 +84,10 @@ impl<'a> Compiler<'a> {
 
         //put the EBB params into ssa_values[i] so we actually use the param (which is initially the value anyway)
         for (i, node) in phis.iter().enumerate() {
-            self.builder.append_ebb_param(loop_start, I64);
+            match node.type_ {
+                IrType::Internal(InternalType::Bool) => self.builder.append_ebb_param(loop_start, B1),
+                _ => self.builder.append_ebb_param(loop_start, I64)
+            };
             let replacing = node.ssa_operands[0];
             self.ssa_values[replacing] = self.builder.ebb_params(loop_start)[i];
         }
@@ -226,7 +230,7 @@ impl<'a> Compiler<'a> {
                     let result = match trace.nodes[ssa_ref].type_ {
                         IrType::Internal(InternalType::Bool) => self.builder.ins().bnot(val),
                         IrType::Internal(InternalType::Value) => self.builder.ins().icmp_imm(IntCC::Equal, val, 0),
-                        _ => panic!(),
+                        _ => panic!("opcode not applied to unexpected type: {:?}", trace.nodes[ssa_ref].type_),
                     };
                     self.ssa_values.push(result);
                 }
