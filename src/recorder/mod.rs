@@ -23,7 +23,6 @@ use ir;
 use ir::*;
 use std::collections::HashMap;
 use trace::IrNodes;
-use vm;
 use vm::OpCode;
 use vm::*;
 
@@ -44,12 +43,12 @@ impl Recorder {
         let raw_value = thread.get_self();
         let value: Value = raw_value.into();
 
-        let nodes = vec![ IrNode {
-                type_: IrType::Yarv(value.type_()),
-                opcode: ir::OpCode::LoadSelf,
-                operands: vec![],
-                ssa_operands: vec![],
-            }];
+        let nodes = vec![IrNode {
+            type_: IrType::Yarv(value.type_()),
+            opcode: ir::OpCode::LoadSelf,
+            operands: vec![],
+            ssa_operands: vec![],
+        }];
 
         Self {
             nodes: nodes,
@@ -63,11 +62,10 @@ impl Recorder {
     }
 
     fn stack_n(&self, offset: usize) -> SsaRef {
-        *self.stack.get(&(self.sp - 8 - (offset * 8) as isize)).expect("stack underflow in n")
-    }
-
-    fn stack_peek(&mut self) -> SsaRef {
-        *self.stack.get(&(self.sp - 8)).expect("stack underflow in peek")
+        *self
+            .stack
+            .get(&(self.sp - 8 - (offset * 8) as isize))
+            .expect("stack underflow in n")
     }
 
     fn stack_pop(&mut self) -> SsaRef {
@@ -143,7 +141,7 @@ impl Recorder {
             OpCode::leave => {
                 self.sp = self.sp - 2;
                 self.call_stack.pop();
-            },
+            }
             OpCode::jump => {}
             _ => return Err(format!("NYI: {:?}", opcode)),
         }
@@ -155,7 +153,6 @@ impl Recorder {
         Snapshot {
             pc: thread.get_pc() as u64,
             sp: thread.get_sp() as u64,
-            self_: SsaOrValue::Value(thread.get_self()),
             stack_map: self.stack.clone(),
         }
     }
@@ -209,7 +206,6 @@ impl Recorder {
         Snapshot {
             pc: snap.pc,
             sp: snap.sp,
-            self_: snap.self_.clone(),
             stack_map: updated,
         }
     }

@@ -1,5 +1,5 @@
-use cranelift_codegen::ir::types::B1;
 use cranelift::prelude::*;
+use cranelift_codegen::ir::types::B1;
 use cranelift_codegen::ir::types::I64;
 use cranelift_codegen::isa::CallConv;
 use cranelift_module::FuncOrDataId::Func;
@@ -86,7 +86,7 @@ impl<'a> Compiler<'a> {
         for (i, node) in phis.iter().enumerate() {
             match node.type_ {
                 IrType::Internal(InternalType::Bool) => self.builder.append_ebb_param(loop_start, B1),
-                _ => self.builder.append_ebb_param(loop_start, I64)
+                _ => self.builder.append_ebb_param(loop_start, I64),
             };
             let replacing = node.ssa_operands[0];
             self.ssa_values[replacing] = self.builder.ebb_params(loop_start)[i];
@@ -114,7 +114,7 @@ impl<'a> Compiler<'a> {
         trace: Trace,
         ep: cranelift::prelude::Value,
         sp_ptr: cranelift::prelude::Value,
-        self_: cranelift::prelude::Value
+        self_: cranelift::prelude::Value,
     ) {
         for node in nodes.iter() {
             match &node.opcode {
@@ -125,10 +125,7 @@ impl<'a> Compiler<'a> {
                     let passthrough = self.ssa_values[*ssa_ref];
                     self.ssa_values.push(passthrough);
                 }
-                OpCode::Phi
-                | OpCode::Loop
-                | Snapshot(_)
-                | OpCode::Yarv(vm::OpCode::putnil) => {
+                OpCode::Phi | OpCode::Loop | Snapshot(_) | OpCode::Yarv(vm::OpCode::putnil) => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                 }
                 OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),
@@ -230,7 +227,10 @@ impl<'a> Compiler<'a> {
                     let result = match trace.nodes[ssa_ref].type_ {
                         IrType::Internal(InternalType::Bool) => self.builder.ins().bnot(val),
                         IrType::Internal(InternalType::Value) => self.builder.ins().icmp_imm(IntCC::Equal, val, 0),
-                        _ => panic!("opcode not applied to unexpected type: {:?}", trace.nodes[ssa_ref].type_),
+                        _ => panic!(
+                            "opcode not applied to unexpected type: {:?}",
+                            trace.nodes[ssa_ref].type_
+                        ),
                     };
                     self.ssa_values.push(result);
                 }

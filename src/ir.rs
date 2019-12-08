@@ -31,7 +31,6 @@ pub enum InternalType {
 pub struct Snapshot {
     pub pc: u64,
     pub sp: u64,
-    pub self_: SsaOrValue,
     pub stack_map: HashMap<isize, SsaRef>,
 }
 
@@ -52,10 +51,4 @@ pub enum OpCode {
     NewHash,
     HashSet,
     HashGet,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum SsaOrValue {
-    Ssa(usize),
-    Value(VALUE),
 }
