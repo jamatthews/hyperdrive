@@ -2,7 +2,7 @@ use super::*;
 
 impl Recorder {
     pub fn record_newarray(&mut self, _thread: Thread, instruction: Instruction) {
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: IrType::Yarv(ValueType::Array),
             opcode: ir::OpCode::NewArray,
             operands: vec![],
@@ -12,7 +12,7 @@ impl Recorder {
         let count = instruction.get_operand(0);
         for _ in 0..count {
             let object = self.stack_pop();
-            self.nodes.push(IrNode {
+            self.nodes.push(IrNode::Basic {
                 type_: IrType::Yarv(ValueType::Array),
                 opcode: ir::OpCode::ArrayAppend,
                 operands: vec![],

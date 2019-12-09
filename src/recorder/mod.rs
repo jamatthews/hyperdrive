@@ -43,7 +43,7 @@ impl Recorder {
         let raw_value = thread.get_self();
         let value: Value = raw_value.into();
 
-        let nodes = vec![IrNode {
+        let nodes = vec![IrNode::Basic {
             type_: IrType::Yarv(value.type_()),
             opcode: ir::OpCode::LoadSelf,
             operands: vec![],
@@ -74,7 +74,7 @@ impl Recorder {
             Some(ssa_ref) => ssa_ref,
             None => {
                 let value: Value = unsafe { *self.base_ep.offset(self.sp) }.into();
-                self.nodes.push(IrNode {
+                self.nodes.push(IrNode::Basic {
                     type_: IrType::Yarv(value.type_()),
                     opcode: ir::OpCode::StackLoad(self.sp),
                     operands: vec![],
@@ -102,7 +102,7 @@ impl Recorder {
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot(thread);
-            self.nodes.push(IrNode {
+            self.nodes.push(IrNode::Basic {
                 type_: IrType::None,
                 opcode: ir::OpCode::Snapshot(snapshot),
                 operands: vec![],
@@ -159,11 +159,11 @@ impl Recorder {
 
     fn peel(&mut self) {
         let peeled = self.nodes.clone();
-        let base_snap = match &self.nodes.last().unwrap().opcode {
+        let base_snap = match &self.nodes.last().unwrap().opcode() {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
             _ => panic!("missing base snapshot"),
         };
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: IrType::None,
             opcode: ir::OpCode::Loop,
             operands: vec![],
@@ -171,28 +171,25 @@ impl Recorder {
         });
         let offset = peeled.len() + 1;
         for node in &peeled {
-            let (opcode, type_) = match &node.opcode {
+            let (opcode, type_) = match &node.opcode() {
                 ir::OpCode::Guard(type_, snap) => (
                     ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
-                    node.type_.clone(),
+                    node.type_(),
                 ),
-                ir::OpCode::Snapshot(snap) => (
-                    ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)),
-                    node.type_.clone(),
-                ),
+                ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_()),
                 ir::OpCode::StackLoad(offset) => {
                     let ssa_ref = *base_snap
                         .get(&offset)
                         .expect(&format!("missing entry in stackmap for: {}", offset));
-                    (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_.clone())
+                    (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
                 }
-                op => (op.clone(), node.type_.clone()),
+                op => (op.clone(), node.type_()),
             };
-            self.nodes.push(IrNode {
+            self.nodes.push(IrNode::Basic {
                 type_: type_,
                 opcode: opcode,
-                operands: node.operands.clone(),
-                ssa_operands: node.ssa_operands.iter().map(|op| *op + peeled.len() + 1).collect(),
+                operands: node.operands(),
+                ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
             });
         }
         self.phi(peeled.len() - 1);
@@ -211,19 +208,19 @@ impl Recorder {
     }
 
     pub fn phi(&mut self, idx: usize) {
-        let after = match &self.nodes.last().unwrap().opcode {
+        let after = match &self.nodes.last().unwrap().opcode() {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
             _ => panic!("missing after snapshot"),
         };
-        let before = match &self.nodes.get(idx).unwrap().opcode {
+        let before = match &self.nodes.get(idx).unwrap().opcode() {
             ir::OpCode::Snapshot(s) => s.stack_map.clone(),
             _ => panic!("missing before snapshot"),
         };
 
         for (slot, ssa_ref) in after.iter() {
             if before.get(slot) != Some(ssa_ref) {
-                self.nodes.push(IrNode {
-                    type_: self.nodes[*ssa_ref].type_.clone(),
+                self.nodes.push(IrNode::Basic {
+                    type_: self.nodes[*ssa_ref].type_(),
                     opcode: ir::OpCode::Phi,
                     operands: vec![],
                     ssa_operands: vec![*before.get(slot).unwrap(), *ssa_ref],

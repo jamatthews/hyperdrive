@@ -6,11 +6,39 @@ use vm::*;
 pub type SsaRef = usize;
 
 #[derive(Clone, Debug)]
-pub struct IrNode {
-    pub type_: IrType,
-    pub opcode: OpCode,
-    pub operands: Vec<VALUE>,
-    pub ssa_operands: Vec<usize>,
+pub enum IrNode {
+    Basic {
+        type_: IrType,
+        opcode: OpCode,
+        operands: Vec<VALUE>,
+        ssa_operands: Vec<SsaRef>,
+    },
+}
+
+impl IrNode {
+    pub fn type_(&self) -> IrType {
+        match self {
+            IrNode::Basic { type_, .. } => type_.clone(),
+        }
+    }
+
+    pub fn opcode(&self) -> OpCode {
+        match self {
+            IrNode::Basic { opcode, .. } => opcode.clone(),
+        }
+    }
+
+    pub fn operands(&self) -> Vec<VALUE> {
+        match self {
+            IrNode::Basic { operands, .. } => operands.clone(),
+        }
+    }
+
+    pub fn ssa_operands(&self) -> Vec<SsaRef> {
+        match self {
+            IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

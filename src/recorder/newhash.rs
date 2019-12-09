@@ -2,7 +2,7 @@ use super::*;
 
 impl Recorder {
     pub fn record_newhash(&mut self, _thread: Thread, instruction: Instruction) {
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: IrType::Yarv(ValueType::Hash),
             opcode: ir::OpCode::NewHash,
             operands: vec![],
@@ -13,7 +13,7 @@ impl Recorder {
         for _ in 0..(count / 2) {
             let value = self.stack_pop();
             let key = self.stack_pop();
-            self.nodes.push(IrNode {
+            self.nodes.push(IrNode::Basic {
                 type_: IrType::Yarv(ValueType::Hash),
                 opcode: ir::OpCode::HashSet,
                 operands: vec![],

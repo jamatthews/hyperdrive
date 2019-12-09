@@ -9,7 +9,7 @@ impl Recorder {
 
         if call_cache.get_type() == rb_method_type_t_VM_METHOD_TYPE_CFUNC {
             let receiver = self.stack_pop();
-            self.nodes.push(IrNode {
+            self.nodes.push(IrNode::Basic {
                 type_: IrType::Internal(InternalType::Value),
                 opcode: ir::OpCode::Yarv(instruction.opcode()),
                 operands: vec![instruction.get_operand(0), instruction.get_operand(1)],

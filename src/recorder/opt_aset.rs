@@ -6,14 +6,14 @@ impl Recorder {
         let key = self.stack_pop();
         let collection = self.stack_pop();
 
-        let opcode = match &self.nodes[collection].type_ {
+        let opcode = match &self.nodes[collection].type_() {
             IrType::Yarv(ValueType::Array) => ir::OpCode::ArraySet,
             IrType::Yarv(ValueType::Hash) => ir::OpCode::HashSet,
             x => panic!("aref not supported for {:#?}", x),
         };
 
-        self.nodes.push(IrNode {
-            type_: self.nodes[value].type_.clone(),
+        self.nodes.push(IrNode::Basic {
+            type_: self.nodes[value].type_(),
             opcode: opcode,
             operands: vec![],
             ssa_operands: vec![collection, key, value],

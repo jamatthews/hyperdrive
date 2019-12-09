@@ -63,7 +63,7 @@ impl<'a> Compiler<'a> {
         let partition = trace
             .nodes
             .iter()
-            .position(|node| match node.opcode {
+            .position(|node| match node.opcode() {
                 OpCode::Loop => true,
                 _ => false,
             })
@@ -72,23 +72,23 @@ impl<'a> Compiler<'a> {
         self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr, self_);
 
         let loop_start = self.builder.create_ebb();
-        let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode == OpCode::Phi).collect();
+        let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode() == OpCode::Phi).collect();
 
         // take all the SSA Values from the prelude to put into the first call of the repeating block
         let phi_params: Vec<_> = phis
             .iter()
-            .map(|n| n.ssa_operands[0])
+            .map(|n| n.ssa_operands()[0])
             .map(|r| self.ssa_values[r])
             .collect();
         self.builder.ins().jump(loop_start, &phi_params);
 
         //put the EBB params into ssa_values[i] so we actually use the param (which is initially the value anyway)
         for (i, node) in phis.iter().enumerate() {
-            match node.type_ {
+            match node.type_() {
                 IrType::Internal(InternalType::Bool) => self.builder.append_ebb_param(loop_start, B1),
                 _ => self.builder.append_ebb_param(loop_start, I64),
             };
-            let replacing = node.ssa_operands[0];
+            let replacing = node.ssa_operands()[0];
             self.ssa_values[replacing] = self.builder.ebb_params(loop_start)[i];
         }
         self.builder.switch_to_block(loop_start);
@@ -98,7 +98,7 @@ impl<'a> Compiler<'a> {
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis
             .iter()
-            .map(|n| n.ssa_operands[1])
+            .map(|n| n.ssa_operands()[1])
             .map(|r| self.ssa_values[r])
             .collect();
         self.builder.ins().jump(loop_start, &phi_params);
@@ -117,7 +117,7 @@ impl<'a> Compiler<'a> {
         self_: cranelift::prelude::Value,
     ) {
         for node in nodes.iter() {
-            match &node.opcode {
+            match &node.opcode() {
                 OpCode::LoadSelf => {
                     self.ssa_values.push(self_);
                 }
@@ -137,8 +137,8 @@ impl<'a> Compiler<'a> {
                     self.ssa_values.push(unboxed);
                 }
                 OpCode::Yarv(vm::OpCode::setlocal_WC_0) => {
-                    let offset = -8 * node.operands[0] as i32;
-                    let ssa_ref = node.ssa_operands[0];
+                    let offset = -8 * node.operands()[0] as i32;
+                    let ssa_ref = node.ssa_operands()[0];
                     let unboxed = self.ssa_values[ssa_ref];
                     let boxed = self.box_(unboxed, &trace.nodes[ssa_ref]);
 
@@ -148,10 +148,10 @@ impl<'a> Compiler<'a> {
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::putstring) => {
-                    self.putconstant(node.operands[0] as i64);
+                    self.putconstant(node.operands()[0] as i64);
                 }
                 OpCode::Yarv(vm::OpCode::putobject) => {
-                    let boxed = node.operands[0];
+                    let boxed = node.operands()[0];
                     let boxed = self.builder.ins().iconst(I64, boxed as i64);
                     let unboxed = self.unbox(boxed, &node);
                     self.ssa_values.push(unboxed);
@@ -159,8 +159,8 @@ impl<'a> Compiler<'a> {
                 OpCode::Yarv(vm::OpCode::opt_lt) => self.binary_op(node),
                 OpCode::Yarv(vm::OpCode::opt_eq) => self.binary_op(node),
                 OpCode::Guard(IrType::Yarv(type_), snapshot) => {
-                    let value = self.ssa_values[node.ssa_operands[0]];
-                    let ssa_ref = node.ssa_operands[0];
+                    let value = self.ssa_values[node.ssa_operands()[0]];
+                    let ssa_ref = node.ssa_operands()[0];
                     let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
@@ -168,7 +168,8 @@ impl<'a> Compiler<'a> {
                         ValueType::False => self.builder.ins().brnz(value, side_exit_block, &[]),
                         _ => panic!(
                             "unexpect type {:?} in guard\n {:#?} ",
-                            trace.nodes[ssa_ref].type_, trace.nodes
+                            trace.nodes[ssa_ref].type_(),
+                            trace.nodes
                         ),
                     };
 
@@ -190,15 +191,15 @@ impl<'a> Compiler<'a> {
                     self.ssa_values.push(self.ssa_values[ssa_ref]);
                 }
                 OpCode::Yarv(vm::OpCode::duparray) => {
-                    let array = node.operands[0];
+                    let array = node.operands()[0];
                     let array = self.builder.ins().iconst(I64, array as i64);
                     self.internal_call_push("_rb_ary_resurrect", &[array]);
                 }
                 OpCode::Yarv(vm::OpCode::opt_send_without_block) => {
-                    let call_cache = CallCache::new(node.operands[1] as *const _);
+                    let call_cache = CallCache::new(node.operands()[1] as *const _);
                     let func = call_cache.get_func() as *const u64;
                     let func = self.builder.ins().iconst(I64, func as i64);
-                    let receiver = self.ssa_values[node.ssa_operands[0]];
+                    let receiver = self.ssa_values[node.ssa_operands()[0]];
 
                     let sig = Signature {
                         params: vec![AbiParam::new(I64)],
@@ -212,66 +213,66 @@ impl<'a> Compiler<'a> {
                     self.ssa_values.push(result);
                 }
                 OpCode::Yarv(vm::OpCode::opt_empty_p) => {
-                    let receiver = self.ssa_values[node.ssa_operands[0]];
+                    let receiver = self.ssa_values[node.ssa_operands()[0]];
                     let count = self.internal_call("_rb_str_strlen", &[receiver]);
                     let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
                     self.ssa_values.push(result);
                 }
                 OpCode::Yarv(vm::OpCode::dup) | OpCode::Yarv(vm::OpCode::pop) => {
                     //pop actually pushes an SSA value to keep alignment
-                    self.ssa_values.push(self.ssa_values[node.ssa_operands[0]])
+                    self.ssa_values.push(self.ssa_values[node.ssa_operands()[0]])
                 }
                 OpCode::Yarv(vm::OpCode::opt_not) => {
-                    let ssa_ref = node.ssa_operands[0];
+                    let ssa_ref = node.ssa_operands()[0];
                     let val = self.ssa_values[ssa_ref];
-                    let result = match trace.nodes[ssa_ref].type_ {
+                    let result = match trace.nodes[ssa_ref].type_() {
                         IrType::Internal(InternalType::Bool) => self.builder.ins().bnot(val),
                         IrType::Internal(InternalType::Value) => self.builder.ins().icmp_imm(IntCC::Equal, val, 0),
                         _ => panic!(
                             "opcode not applied to unexpected type: {:?}",
-                            trace.nodes[ssa_ref].type_
+                            trace.nodes[ssa_ref].type_()
                         ),
                     };
                     self.ssa_values.push(result);
                 }
                 OpCode::ArrayAppend => {
-                    let array = self.ssa_values[node.ssa_operands[0]];
-                    let unboxed = self.ssa_values[node.ssa_operands[1]];
-                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands[1]]);
+                    let array = self.ssa_values[node.ssa_operands()[0]];
+                    let unboxed = self.ssa_values[node.ssa_operands()[1]];
+                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands()[1]]);
                     self.internal_call_push("_rb_ary_push", &[array, boxed]);
                 }
                 OpCode::NewArray => self.internal_call_push("_rb_ary_new", &[]),
                 OpCode::ArrayGet => {
-                    let array = self.ssa_values[node.ssa_operands[0]];
-                    let unboxed = self.ssa_values[node.ssa_operands[1]];
-                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands[1]]);
+                    let array = self.ssa_values[node.ssa_operands()[0]];
+                    let unboxed = self.ssa_values[node.ssa_operands()[1]];
+                    let boxed = self.box_(unboxed, &trace.nodes[node.ssa_operands()[1]]);
                     self.internal_call_push("_rb_ary_aref1", &[array, boxed]);
                 }
                 OpCode::ArraySet => {
-                    let array = self.ssa_values[node.ssa_operands[0]];
-                    let key = self.ssa_values[node.ssa_operands[1]];
-                    let value = self.ssa_values[node.ssa_operands[2]];
-                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
-                    let value = self.box_(value, &trace.nodes[node.ssa_operands[2]]);
+                    let array = self.ssa_values[node.ssa_operands()[0]];
+                    let key = self.ssa_values[node.ssa_operands()[1]];
+                    let value = self.ssa_values[node.ssa_operands()[2]];
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands()[1]]);
+                    let value = self.box_(value, &trace.nodes[node.ssa_operands()[2]]);
                     self.internal_call_push("_rb_ary_store", &[array, key, value]);
                 }
                 OpCode::NewHash => self.internal_call_push("_rb_hash_new", &[]),
                 OpCode::HashSet => {
-                    let hash = self.ssa_values[node.ssa_operands[0]];
-                    let key = self.ssa_values[node.ssa_operands[1]];
-                    let value = self.ssa_values[node.ssa_operands[2]];
-                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
-                    let value = self.box_(value, &trace.nodes[node.ssa_operands[2]]);
+                    let hash = self.ssa_values[node.ssa_operands()[0]];
+                    let key = self.ssa_values[node.ssa_operands()[1]];
+                    let value = self.ssa_values[node.ssa_operands()[2]];
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands()[1]]);
+                    let value = self.box_(value, &trace.nodes[node.ssa_operands()[2]]);
                     self.internal_call("_rb_hash_aset", &[hash, key, value]);
                     self.ssa_values.push(hash);
                 }
                 OpCode::HashGet => {
-                    let hash = self.ssa_values[node.ssa_operands[0]];
-                    let key = self.ssa_values[node.ssa_operands[1]];
-                    let key = self.box_(key, &trace.nodes[node.ssa_operands[1]]);
+                    let hash = self.ssa_values[node.ssa_operands()[0]];
+                    let key = self.ssa_values[node.ssa_operands()[1]];
+                    let key = self.box_(key, &trace.nodes[node.ssa_operands()[1]]);
                     self.internal_call_push("_rb_hash_aref", &[hash, key]);
                 }
-                _ => panic!("NYI: {:?}", node.opcode),
+                _ => panic!("NYI: {:?}", node.opcode()),
             };
         }
     }
@@ -281,9 +282,9 @@ impl<'a> Compiler<'a> {
     }
 
     fn binary_op(&mut self, node: &IrNode) {
-        let a = self.ssa_values[node.ssa_operands[0]];
-        let b = self.ssa_values[node.ssa_operands[1]];
-        let result = match node.opcode {
+        let a = self.ssa_values[node.ssa_operands()[0]];
+        let b = self.ssa_values[node.ssa_operands()[1]];
+        let result = match node.opcode() {
             OpCode::Yarv(vm::OpCode::opt_plus) => self.builder.ins().iadd(a, b),
             OpCode::Yarv(vm::OpCode::opt_lt) => self.builder.ins().icmp(IntCC::SignedLessThan, a, b),
             OpCode::Yarv(vm::OpCode::opt_eq) => self.builder.ins().icmp(IntCC::Equal, a, b),
@@ -308,7 +309,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn unbox(&mut self, boxed: cranelift::prelude::Value, node: &IrNode) -> cranelift::prelude::Value {
-        match node.type_ {
+        match node.type_() {
             //putobject might be a Fixnum but the node type is I64
             IrType::Yarv(ValueType::Fixnum) | IrType::Internal(InternalType::I64) => {
                 let builder = &mut self.builder;
@@ -321,7 +322,7 @@ impl<'a> Compiler<'a> {
 
     fn box_(&mut self, unboxed: cranelift::prelude::Value, node: &IrNode) -> cranelift::prelude::Value {
         let builder = &mut self.builder;
-        match node.type_ {
+        match node.type_() {
             IrType::Internal(InternalType::I64) => i64_2_value!(unboxed, builder),
             IrType::Internal(InternalType::Bool) => b1_2_value!(unboxed, builder),
             IrType::Yarv(_) | IrType::Internal(InternalType::Value) => unboxed,

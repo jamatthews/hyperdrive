@@ -11,7 +11,7 @@ impl Recorder {
             IrType::Yarv(value.type_())
         };
 
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: type_,
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![raw_value],

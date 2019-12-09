@@ -5,7 +5,7 @@ impl Recorder {
         let a = self.stack_pop();
         let b = self.stack_pop();
 
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: IrType::Internal(InternalType::I64),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],

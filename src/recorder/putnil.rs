@@ -2,7 +2,7 @@ use super::*;
 
 impl Recorder {
     pub fn record_putnil(&mut self, _thread: Thread, instruction: Instruction) {
-        self.nodes.push(IrNode {
+        self.nodes.push(IrNode::Basic {
             type_: IrType::Yarv(ValueType::Nil),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],
