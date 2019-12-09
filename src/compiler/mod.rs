@@ -136,17 +136,6 @@ impl<'a> Compiler<'a> {
                     let unboxed = self.unbox(boxed, &node);
                     self.ssa_values.push(unboxed);
                 }
-                OpCode::Yarv(vm::OpCode::setlocal_WC_0) => {
-                    let offset = -8 * node.operands()[0] as i32;
-                    let ssa_ref = node.ssa_operands()[0];
-                    let unboxed = self.ssa_values[ssa_ref];
-                    let boxed = self.box_(unboxed, &trace.nodes[ssa_ref]);
-
-                    self.builder.ins().store(MemFlags::new(), boxed, ep, offset);
-
-                    //push to keep alignment
-                    self.ssa_values.push(self.ssa_values[ssa_ref]);
-                }
                 OpCode::Yarv(vm::OpCode::putstring) => {
                     self.putconstant(node.operands()[0] as i64);
                 }
