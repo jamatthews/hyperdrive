@@ -8,6 +8,7 @@ mod newhash;
 mod opt_aref;
 mod opt_aset;
 mod opt_empty_p;
+mod opt_size;
 mod opt_ltlt;
 mod opt_not;
 mod opt_plus;
@@ -123,6 +124,7 @@ impl Recorder {
             OpCode::opt_aref => self.record_opt_aref(thread, instruction),
             OpCode::opt_aset => self.record_opt_aset(thread, instruction),
             OpCode::opt_empty_p => self.record_opt_empty_p(thread, instruction),
+            OpCode::opt_size => self.record_opt_size(thread, instruction),
             OpCode::opt_ltlt => self.record_opt_ltlt(thread, instruction),
             OpCode::opt_not => self.record_opt_not(thread, instruction),
             OpCode::opt_plus => self.record_opt_plus(thread, instruction),

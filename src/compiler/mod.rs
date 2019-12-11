@@ -209,6 +209,11 @@ impl<'a> Compiler<'a> {
                             let result = self.builder.ins().icmp_imm(IntCC::Equal, count, 0);
                             self.ssa_values.push(result);
                         }
+                        OpCode::Yarv(vm::OpCode::opt_size) => {
+                            let receiver = self.ssa_values[node.ssa_operands()[0]];
+                            let count = self.internal_call("_rb_ary_len", &[receiver]);
+                            self.ssa_values.push(count);
+                        }
                         OpCode::Yarv(vm::OpCode::dup) | OpCode::Yarv(vm::OpCode::pop) => {
                             //pop actually pushes an SSA value to keep alignment
                             self.ssa_values.push(self.ssa_values[node.ssa_operands()[0]])
