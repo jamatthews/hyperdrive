@@ -4,12 +4,10 @@ impl Recorder {
     pub fn record_putstring(&mut self, _thread: Thread, instruction: Instruction) {
         let raw_value = instruction.get_operand(0);
 
-        self.nodes.push(IrNode::Basic {
+        let ssa_ref = self.emit(IrNode::Constant {
             type_: IrType::Yarv(ValueType::RString),
-            opcode: ir::OpCode::Yarv(instruction.opcode()),
-            operands: vec![raw_value],
-            ssa_operands: vec![],
+            reference: raw_value,
         });
-        self.stack_push(self.nodes.len() - 1);
+        self.stack_push(ssa_ref);
     }
 }

@@ -5,7 +5,7 @@ use vm::*;
 
 pub type SsaRef = usize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum IrNode {
     Basic {
         type_: IrType,
@@ -13,30 +13,45 @@ pub enum IrNode {
         operands: Vec<VALUE>,
         ssa_operands: Vec<SsaRef>,
     },
+    Constant {
+        type_: IrType,
+        reference: VALUE,
+    }
 }
 
 impl IrNode {
     pub fn type_(&self) -> IrType {
         match self {
             IrNode::Basic { type_, .. } => type_.clone(),
+            IrNode::Constant { type_, .. } => type_.clone(),
         }
     }
 
     pub fn opcode(&self) -> OpCode {
         match self {
             IrNode::Basic { opcode, .. } => opcode.clone(),
+            IrNode::Constant { .. } => OpCode::None,
         }
     }
 
     pub fn operands(&self) -> Vec<VALUE> {
         match self {
             IrNode::Basic { operands, .. } => operands.clone(),
+            IrNode::Constant { .. } => vec![],
         }
     }
 
     pub fn ssa_operands(&self) -> Vec<SsaRef> {
         match self {
             IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
+            IrNode::Constant { .. } => vec![],
+        }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        match self {
+            IrNode::Constant { .. } => true,
+            _ => false,
         }
     }
 }
@@ -64,6 +79,7 @@ pub struct Snapshot {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum OpCode {
+    None,
     Loop, //marks the end of the prelude and start of the loop body
     Phi,
     Pass(SsaRef),

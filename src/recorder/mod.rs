@@ -170,27 +170,39 @@ impl Recorder {
             ssa_operands: vec![],
         });
         let offset = peeled.len() + 1;
-        for node in &peeled {
-            let (opcode, type_) = match &node.opcode() {
-                ir::OpCode::Guard(type_, snap) => (
-                    ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
-                    node.type_(),
-                ),
-                ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_()),
-                ir::OpCode::StackLoad(offset) => {
-                    let ssa_ref = *base_snap
-                        .get(&offset)
-                        .expect(&format!("missing entry in stackmap for: {}", offset));
-                    (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
+        for (i, node) in peeled.iter().enumerate() {
+            match node {
+                IrNode::Constant { .. } => {
+                    self.nodes.push(IrNode::Basic {
+                        type_: node.type_(),
+                        opcode: ir::OpCode::Pass(i),
+                        operands: vec![],
+                        ssa_operands: vec![],
+                    });
                 }
-                op => (op.clone(), node.type_()),
-            };
-            self.nodes.push(IrNode::Basic {
-                type_: type_,
-                opcode: opcode,
-                operands: node.operands(),
-                ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
-            });
+                IrNode::Basic { .. } => {
+                    let (opcode, type_) = match &node.opcode() {
+                        ir::OpCode::Guard(type_, snap) => (
+                            ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
+                            node.type_(),
+                        ),
+                        ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_()),
+                        ir::OpCode::StackLoad(offset) => {
+                            let ssa_ref = *base_snap
+                                .get(&offset)
+                                .expect(&format!("missing entry in stackmap for: {}", offset));
+                            (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
+                        }
+                        op => (op.clone(), node.type_()),
+                    };
+                    self.nodes.push(IrNode::Basic {
+                        type_: type_,
+                        opcode: opcode,
+                        operands: node.operands(),
+                        ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
+                    });
+                }
+            }
         }
         self.phi(peeled.len() - 1);
     }
@@ -227,5 +239,72 @@ impl Recorder {
                 });
             }
         }
+    }
+
+    pub fn emit(&mut self, new: IrNode) -> SsaRef {
+        if !new.is_constant() {
+            self.nodes.push(new);
+            return self.nodes.len() - 1
+        }
+        match self.nodes.iter().position(|existing| *existing == new) {
+            Some(index) => index,
+            None => {
+                self.nodes.push(new);
+                self.nodes.len() - 1
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyperdrive_ruby::ruby_special_consts_RUBY_Qnil;
+    use hyperdrive_ruby::VALUE;
+
+    #[test]
+    fn it_deduplicates_constants() {
+        let mut recorder = Recorder {
+            nodes: vec![],
+            stack: HashMap::new(),
+            anchor: 0,
+            base_ep: 0 as *const u64,
+            sp: 1,
+            ep: 0,
+            call_stack: vec![0],
+        };
+
+        let recorded_node = IrNode::Constant {
+            type_: IrType::Yarv(ValueType::Nil),
+            reference: ruby_special_consts_RUBY_Qnil as VALUE,
+        };
+
+        let a = recorder.emit(recorded_node.clone());
+        let b = recorder.emit(recorded_node.clone());
+        assert_eq!(recorder.nodes.len(), 1);
+    }
+
+    #[test]
+    fn it_does_not_deduplicate_stores() {
+        let mut recorder = Recorder {
+            nodes: vec![],
+            stack: HashMap::new(),
+            anchor: 0,
+            base_ep: 0 as *const u64,
+            sp: 1,
+            ep: 0,
+            call_stack: vec![0],
+        };
+
+        let recorded_node = IrNode::Basic {
+            type_: IrType::Yarv(ValueType::Array),
+            opcode: ir::OpCode::NewArray,
+            operands: vec![],
+            ssa_operands: vec![],
+        };
+
+        let a = recorder.emit(recorded_node.clone());
+        let b = recorder.emit(recorded_node.clone());
+        assert_eq!(recorder.nodes.len(), 2);
     }
 }
