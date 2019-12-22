@@ -35,7 +35,13 @@ pub struct Recorder {
     base_ep: *const u64,
     sp: isize,
     ep: isize,
-    call_stack: Vec<SsaRef>,
+    call_stack: Vec<Frame>,
+}
+
+#[derive(Clone, Debug)]
+struct Frame {
+    self_: SsaRef,
+    sp: isize,
 }
 
 impl Recorder {
@@ -51,14 +57,15 @@ impl Recorder {
             ssa_operands: vec![],
         }];
 
+        let sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize; //keep SP as relative so we can restore relative to EP
         Self {
             nodes: nodes,
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
             base_ep: thread.get_ep(),
-            sp: (thread.get_sp() as u64 - thread.get_ep() as u64) as isize, //keep SP as relative so we can restore relative to EP
+            sp: sp,
             ep: 0,
-            call_stack: vec![0],
+            call_stack: vec![Frame { self_: 0, sp: sp }],
         }
     }
 
@@ -99,7 +106,7 @@ impl Recorder {
         let opcode = instruction.opcode();
 
         self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
-        self.sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot(thread);
@@ -141,10 +148,13 @@ impl Recorder {
             OpCode::putstring => self.record_putstring(thread, instruction),
             OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
             OpCode::leave => {
-                self.sp = self.sp - 2;
+                let ret = self.stack_pop();
                 self.call_stack.pop();
-            }
-            OpCode::jump => {}
+                self.sp = self.call_stack.last().expect("stack underflow").sp;
+                self.stack_push(ret);
+
+            },
+            OpCode::jump|OpCode::hot_loop|OpCode::nop => {}
             _ => return Err(format!("NYI: {:?}", opcode)),
         }
 
@@ -192,7 +202,7 @@ impl Recorder {
                         ir::OpCode::StackLoad(offset) => {
                             let ssa_ref = *base_snap
                                 .get(&offset)
-                                .expect(&format!("missing entry in stackmap for: {}", offset));
+                                .expect(&format!("missing entry in stackmap for: {} in \n {:#?}", offset, base_snap));
                             (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
                         }
                         op => (op.clone(), node.type_()),
