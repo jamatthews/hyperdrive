@@ -280,7 +280,7 @@ mod tests {
             base_ep: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![0],
+            call_stack: vec![Frame { self_: 0, sp: 0 }],
         };
 
         let recorded_node = IrNode::Constant {
@@ -302,7 +302,7 @@ mod tests {
             base_ep: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![0],
+            call_stack: vec![Frame { self_: 0, sp: 0 }],
         };
 
         let recorded_node = IrNode::Basic {
