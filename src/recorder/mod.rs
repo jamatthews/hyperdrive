@@ -101,12 +101,9 @@ impl Recorder {
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
-        self.sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
-
-        self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
-        self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot(thread);
