@@ -88,9 +88,7 @@ lazy_static! {
         module
             .declare_function("_rb_str_strlen", Linkage::Import, &sig)
             .unwrap();
-        module
-            .declare_function("_rb_ary_len", Linkage::Import, &sig)
-            .unwrap();
+        module.declare_function("_rb_ary_len", Linkage::Import, &sig).unwrap();
 
         Mutex::new(Hyperdrive {
             mode: Mode::Normal,
@@ -171,21 +169,22 @@ fn trace_record_instruction(thread: Thread) {
 
 fn trace_exit(_pc: u64) {}
 
-use hyperdrive_ruby::RArray;
 use hyperdrive_ruby::ruby_rarray_flags_RARRAY_EMBED_FLAG;
 use hyperdrive_ruby::ruby_rarray_flags_RARRAY_EMBED_LEN_MASK;
 use hyperdrive_ruby::ruby_rarray_flags_RARRAY_EMBED_LEN_SHIFT;
+use hyperdrive_ruby::RArray;
 use std::os::raw::c_long;
 
 #[no_mangle]
-pub unsafe extern "C"  fn rb_ary_len(value: vm::Value) -> c_long {
+pub unsafe extern "C" fn rb_ary_len(value: vm::Value) -> c_long {
     let rarray: *const RArray = std::mem::transmute(value.value);
     let flags = (*rarray).basic.flags;
 
     if flags & (ruby_rarray_flags_RARRAY_EMBED_FLAG as u64) == 0 {
         (*rarray).as_.heap.len
     } else {
-        ((flags as i64 >> ruby_rarray_flags_RARRAY_EMBED_LEN_SHIFT as i64) &
-         (ruby_rarray_flags_RARRAY_EMBED_LEN_MASK as i64 >> ruby_rarray_flags_RARRAY_EMBED_LEN_SHIFT as i64)) as c_long
+        ((flags as i64 >> ruby_rarray_flags_RARRAY_EMBED_LEN_SHIFT as i64)
+            & (ruby_rarray_flags_RARRAY_EMBED_LEN_MASK as i64 >> ruby_rarray_flags_RARRAY_EMBED_LEN_SHIFT as i64))
+            as c_long
     }
 }

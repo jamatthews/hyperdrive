@@ -8,11 +8,11 @@ mod newhash;
 mod opt_aref;
 mod opt_aset;
 mod opt_empty_p;
-mod opt_size;
 mod opt_ltlt;
 mod opt_not;
 mod opt_plus;
 mod opt_send_without_block;
+mod opt_size;
 mod putnil;
 mod putobject;
 mod putobject_fix;
@@ -36,12 +36,6 @@ pub struct Recorder {
     sp: isize,
     ep: isize,
     call_stack: Vec<Frame>,
-}
-
-#[derive(Clone, Debug)]
-struct Frame {
-    self_: SsaRef,
-    sp: isize,
 }
 
 impl Recorder {
@@ -102,6 +96,7 @@ impl Recorder {
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
         self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
+        //self.call_stack.last_mut().expect("stack underflow").sp = self.sp;
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
@@ -149,9 +144,8 @@ impl Recorder {
                 self.call_stack.pop();
                 self.sp = self.call_stack.last().expect("stack underflow").sp;
                 self.stack_push(ret);
-
-            },
-            OpCode::jump|OpCode::hot_loop|OpCode::nop => {}
+            }
+            OpCode::jump | OpCode::hot_loop | OpCode::nop => {}
             _ => return Err(format!("NYI: {:?}", opcode)),
         }
 
@@ -159,10 +153,12 @@ impl Recorder {
     }
 
     fn snapshot(&mut self, thread: Thread) -> Snapshot {
+        let mut frames = self.call_stack.clone();
+        frames.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
         Snapshot {
             pc: thread.get_pc() as u64,
-            sp: (thread.get_sp() as u64 - self.base_ep as u64) as isize,
             stack_map: self.stack.clone(),
+            call_stack: frames,
         }
     }
 
@@ -195,11 +191,14 @@ impl Recorder {
                             ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
                             node.type_(),
                         ),
-                        ir::OpCode::Snapshot(snap) => (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_()),
+                        ir::OpCode::Snapshot(snap) => {
+                            (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_())
+                        }
                         ir::OpCode::StackLoad(offset) => {
-                            let ssa_ref = *base_snap
-                                .get(&offset)
-                                .expect(&format!("missing entry in stackmap for: {} in \n {:#?}", offset, base_snap));
+                            let ssa_ref = *base_snap.get(&offset).expect(&format!(
+                                "missing entry in stackmap for: {} in \n {:#?}",
+                                offset, base_snap
+                            ));
                             (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
                         }
                         op => (op.clone(), node.type_()),
@@ -223,8 +222,8 @@ impl Recorder {
         }
         Snapshot {
             pc: snap.pc,
-            sp: snap.sp,
             stack_map: updated,
+            call_stack: snap.call_stack.clone(),
         }
     }
 
@@ -253,7 +252,7 @@ impl Recorder {
     pub fn emit(&mut self, new: IrNode) -> SsaRef {
         if !new.is_constant() {
             self.nodes.push(new);
-            return self.nodes.len() - 1
+            return self.nodes.len() - 1;
         }
         match self.nodes.iter().position(|existing| *existing == new) {
             Some(index) => index,

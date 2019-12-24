@@ -120,7 +120,7 @@ impl<'a> Compiler<'a> {
             match node {
                 IrNode::Constant { type_, reference } => {
                     self.putconstant(*reference as i64);
-                },
+                }
                 IrNode::Basic { .. } => {
                     match &node.opcode() {
                         OpCode::LoadSelf => {
@@ -173,8 +173,9 @@ impl<'a> Compiler<'a> {
                                 self.builder.ins().store(MemFlags::new(), boxed, ep, *offset as i32);
                             }
 
-                            let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
-                            let sp = self.builder.ins().iadd(ep, sp);
+                            let sp_offset = snapshot.call_stack.last().expect("call stack underflow").sp;
+                            let sp_offset = self.builder.ins().iconst(I64, sp_offset as i64);
+                            let sp = self.builder.ins().iadd(ep, sp_offset);
                             self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
                             let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
                             self.builder.ins().return_(&[pc]);
@@ -224,7 +225,9 @@ impl<'a> Compiler<'a> {
                             let val = self.ssa_values[ssa_ref];
                             let result = match trace.nodes[ssa_ref].type_() {
                                 IrType::Internal(InternalType::Bool) => self.builder.ins().bnot(val),
-                                IrType::Internal(InternalType::Value) => self.builder.ins().icmp_imm(IntCC::Equal, val, 0),
+                                IrType::Internal(InternalType::Value) => {
+                                    self.builder.ins().icmp_imm(IntCC::Equal, val, 0)
+                                }
                                 _ => panic!(
                                     "opcode not applied to unexpected type: {:?}",
                                     trace.nodes[ssa_ref].type_()
@@ -273,7 +276,6 @@ impl<'a> Compiler<'a> {
                     };
                 }
             }
-
         }
     }
 

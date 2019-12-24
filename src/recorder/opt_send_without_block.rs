@@ -18,7 +18,10 @@ impl Recorder {
             self.stack_push(self.nodes.len() - 1);
         } else {
             let receiver = self.stack_n(call_info.get_orig_argc() as usize);
-            self.call_stack.push(Frame { self_: receiver, sp: self.sp });
+            self.call_stack.push(Frame {
+                self_: receiver,
+                sp: self.sp,
+            });
         }
     }
 }

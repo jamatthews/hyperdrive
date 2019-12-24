@@ -16,7 +16,7 @@ pub enum IrNode {
     Constant {
         type_: IrType,
         reference: VALUE,
-    }
+    },
 }
 
 impl IrNode {
@@ -71,10 +71,16 @@ pub enum InternalType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Frame {
+    pub self_: SsaRef,
+    pub sp: isize,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
     pub pc: u64,
-    pub sp: isize,
     pub stack_map: HashMap<isize, SsaRef>,
+    pub call_stack: Vec<Frame>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
