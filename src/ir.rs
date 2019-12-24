@@ -73,7 +73,7 @@ pub enum InternalType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
     pub pc: u64,
-    pub sp: u64,
+    pub sp: isize,
     pub stack_map: HashMap<isize, SsaRef>,
 }
 

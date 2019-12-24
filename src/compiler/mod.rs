@@ -174,6 +174,7 @@ impl<'a> Compiler<'a> {
                             }
 
                             let sp = self.builder.ins().iconst(I64, snapshot.sp as i64);
+                            let sp = self.builder.ins().iadd(ep, sp);
                             self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
                             let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
                             self.builder.ins().return_(&[pc]);

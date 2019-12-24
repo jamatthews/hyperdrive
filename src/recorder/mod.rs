@@ -161,7 +161,7 @@ impl Recorder {
     fn snapshot(&mut self, thread: Thread) -> Snapshot {
         Snapshot {
             pc: thread.get_pc() as u64,
-            sp: thread.get_sp() as u64,
+            sp: (thread.get_sp() as u64 - self.base_ep as u64) as isize,
             stack_map: self.stack.clone(),
         }
     }
