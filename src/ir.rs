@@ -73,12 +73,12 @@ pub enum InternalType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Frame {
     pub self_: SsaRef,
+    pub pc: u64,
     pub sp: isize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
-    pub pc: u64,
     pub stack_map: HashMap<isize, SsaRef>,
     pub call_stack: Vec<Frame>,
 }

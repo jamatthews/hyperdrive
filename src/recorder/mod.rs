@@ -59,7 +59,7 @@ impl Recorder {
             base_ep: thread.get_ep(),
             sp: sp,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, sp: sp }],
+            call_stack: vec![Frame { self_: 0, sp: sp , pc: thread.get_pc() as u64}],
         }
     }
 
@@ -154,8 +154,8 @@ impl Recorder {
     fn snapshot(&mut self, thread: Thread) -> Snapshot {
         let mut frames = self.call_stack.clone();
         frames.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
+        frames.last_mut().unwrap().pc = thread.get_pc() as u64;
         Snapshot {
-            pc: thread.get_pc() as u64,
             stack_map: self.stack.clone(),
             call_stack: frames,
         }
@@ -220,7 +220,6 @@ impl Recorder {
             updated.insert(offset.clone(), ssa_ref + bias);
         }
         Snapshot {
-            pc: snap.pc,
             stack_map: updated,
             call_stack: snap.call_stack.clone(),
         }
@@ -278,7 +277,7 @@ mod tests {
             base_ep: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, sp: 0 }],
+            call_stack: vec![Frame { self_: 0, pc: 0, sp: 0 }],
         };
 
         let recorded_node = IrNode::Constant {
@@ -300,7 +299,7 @@ mod tests {
             base_ep: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, sp: 0 }],
+            call_stack: vec![Frame { self_: 0, pc: 0, sp: 0 }],
         };
 
         let recorded_node = IrNode::Basic {

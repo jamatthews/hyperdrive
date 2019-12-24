@@ -173,11 +173,11 @@ impl<'a> Compiler<'a> {
                                 self.builder.ins().store(MemFlags::new(), boxed, ep, *offset as i32);
                             }
 
-                            let sp_offset = snapshot.call_stack.last().expect("call stack underflow").sp;
-                            let sp_offset = self.builder.ins().iconst(I64, sp_offset as i64);
+                            let exit_frame = snapshot.call_stack.last().expect("call stack underflow");
+                            let sp_offset = self.builder.ins().iconst(I64, exit_frame.sp as i64);
                             let sp = self.builder.ins().iadd(ep, sp_offset);
                             self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
-                            let pc = self.builder.ins().iconst(I64, snapshot.pc as i64);
+                            let pc = self.builder.ins().iconst(I64, exit_frame.pc as i64);
                             self.builder.ins().return_(&[pc]);
 
                             self.builder.switch_to_block(continue_block);
