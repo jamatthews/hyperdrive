@@ -96,7 +96,6 @@ impl Recorder {
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
         self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
-        //self.call_stack.last_mut().expect("stack underflow").sp = self.sp;
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
