@@ -124,6 +124,7 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
+                let base_ep = thread.get_ep() as u64;
                 let exit_node = trace_function(
                     thread.get_thread_ptr(),
                     thread.get_ep(),
@@ -137,7 +138,9 @@ fn trace_dispatch(thread: Thread) {
                 };
                 let last_frame = snap.call_stack.last().unwrap();
 
-                thread.set_pc(last_frame.pc - 8); //the width of the hot_loop instruction
+
+                thread.set_sp(base_ep + last_frame.sp as u64);
+                thread.set_pc(last_frame.pc - 8); //not sure why this needs moving back 8 bytes?
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();

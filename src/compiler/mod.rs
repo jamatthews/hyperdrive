@@ -140,11 +140,6 @@ impl<'a> Compiler<'a> {
                         self.builder.ins().store(MemFlags::new(), boxed, ep, *offset as i32);
                     }
 
-                    let exit_frame = snap.call_stack.last().expect("call stack underflow");
-                    let sp_offset = self.builder.ins().iconst(I64, exit_frame.sp as i64);
-                    let sp = self.builder.ins().iadd(ep, sp_offset);
-                    self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
-
                     let exit_node = self.builder.ins().iconst(I64, (i  + bias) as i64);
                     self.builder.ins().return_(&[exit_node]);
 
