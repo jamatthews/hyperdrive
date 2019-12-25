@@ -19,7 +19,7 @@ pub enum IrNode {
     },
     Guard {
         type_: IrType,
-        ssa_operands: Vec<SsaRef>,
+        ssa_ref: SsaRef,
         snap: Snapshot,
     },
     Snapshot {
@@ -55,7 +55,7 @@ impl IrNode {
         match self {
             IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
             IrNode::Constant { .. } => vec![],
-            IrNode::Guard { ssa_operands, .. } => ssa_operands.clone(),
+            IrNode::Guard { ssa_ref, .. } => vec![*ssa_ref],
             IrNode::Snapshot { .. } => vec![],
         }
     }
@@ -103,9 +103,7 @@ pub enum OpCode {
     Pass(SsaRef),
     LoadSelf,
     Yarv(vm::OpCode),
-    Snapshot(Snapshot),
     StackLoad(isize),
-    Guard(IrType, Snapshot),
     ArrayAppend,
     ArrayGet,
     NewArray,

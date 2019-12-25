@@ -105,12 +105,7 @@ impl Recorder {
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot();
-            self.nodes.push(IrNode::Basic {
-                type_: IrType::None,
-                opcode: ir::OpCode::Snapshot(snapshot),
-                operands: vec![],
-                ssa_operands: vec![],
-            });
+            self.nodes.push(IrNode::Snapshot { snap: snapshot });
             self.peel();
             return Ok(true);
         }
@@ -166,8 +161,8 @@ impl Recorder {
 
     fn peel(&mut self) {
         let peeled = self.nodes.clone();
-        let base_snap = match &self.nodes.last().unwrap().opcode() {
-            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+        let stack_map = match &self.nodes.last().unwrap() {
+            IrNode::Snapshot { snap } => snap.stack_map.clone(),
             _ => panic!("missing base snapshot"),
         };
         self.nodes.push(IrNode::Basic {
@@ -187,23 +182,24 @@ impl Recorder {
                         ssa_operands: vec![],
                     });
                 },
-                IrNode::Guard { type_, ssa_operands, snap } => {
+                IrNode::Guard { type_, ssa_ref, snap } => {
                     self.nodes.push(IrNode::Guard {
                         type_: type_.clone(),
                         snap: self.copy_snapshot(snap, offset),
-                        ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
+                        ssa_ref: ssa_ref + peeled.len() + 1,
                     });
                 },
-                IrNode::Snapshot { .. } => {},
+                IrNode::Snapshot { snap } => {
+                    self.nodes.push(IrNode::Snapshot {
+                        snap: self.copy_snapshot(snap, offset),
+                    });
+                },
                 IrNode::Basic { .. } => {
                     let (opcode, type_) = match &node.opcode() {
-                        ir::OpCode::Snapshot(snap) => {
-                            (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_())
-                        }
                         ir::OpCode::StackLoad(offset) => {
-                            let ssa_ref = *base_snap.get(&offset).expect(&format!(
+                            let ssa_ref = *stack_map.get(&offset).expect(&format!(
                                 "missing entry in stackmap for: {} in \n {:#?}",
-                                offset, base_snap
+                                offset, stack_map
                             ));
                             (ir::OpCode::Pass(ssa_ref), self.nodes[ssa_ref].type_())
                         }
@@ -233,12 +229,12 @@ impl Recorder {
     }
 
     pub fn phi(&mut self, idx: usize) {
-        let after = match &self.nodes.last().unwrap().opcode() {
-            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+        let after = match &self.nodes.last().unwrap() {
+            IrNode::Snapshot { snap } => snap.stack_map.clone(),
             _ => panic!("missing after snapshot"),
         };
-        let before = match &self.nodes.get(idx).unwrap().opcode() {
-            ir::OpCode::Snapshot(s) => s.stack_map.clone(),
+        let before = match &self.nodes.get(idx).unwrap() {
+            IrNode::Snapshot { snap }  => snap.stack_map.clone(),
             _ => panic!("missing before snapshot"),
         };
 

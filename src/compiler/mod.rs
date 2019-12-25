@@ -7,7 +7,6 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 use hyperdrive_ruby::ruby_special_consts_RUBY_Qnil;
 use ir::OpCode;
-use ir::OpCode::Snapshot;
 use ir::*;
 use trace::Trace;
 use vm;
@@ -121,19 +120,14 @@ impl<'a> Compiler<'a> {
                 IrNode::Constant { reference, .. } => {
                     self.putconstant(*reference as i64);
                 },
-                IrNode::Guard { type_, ssa_operands, snap } => {
-                    let ssa_ref = ssa_operands[0];
-                    let value = self.ssa_values[ssa_ref];
+                IrNode::Guard { type_, ssa_ref, snap } => {
+                    let value = self.ssa_values[*ssa_ref];
                     let side_exit_block = self.builder.create_ebb();
 
                     match type_ {
                         IrType::Yarv(ValueType::True) => self.builder.ins().brz(value, side_exit_block, &[]),
                         IrType::Yarv(ValueType::False) => self.builder.ins().brnz(value, side_exit_block, &[]),
-                        _ => panic!(
-                            "unexpect type {:?} in guard\n {:#?} ",
-                            trace.nodes[ssa_ref].type_(),
-                            trace.nodes
-                        ),
+                        _ => panic!("unexpect type {:?} in guard\n {:#?} ", type_, nodes),
                     };
 
                     let continue_block = self.builder.create_ebb();
@@ -153,7 +147,7 @@ impl<'a> Compiler<'a> {
                     self.builder.ins().return_(&[pc]);
 
                     self.builder.switch_to_block(continue_block);
-                    self.ssa_values.push(self.ssa_values[ssa_ref]);
+                    self.ssa_values.push(self.ssa_values[*ssa_ref]);
                 },
                 IrNode::Snapshot { .. } => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
@@ -167,7 +161,7 @@ impl<'a> Compiler<'a> {
                             let passthrough = self.ssa_values[*ssa_ref];
                             self.ssa_values.push(passthrough);
                         }
-                        OpCode::Phi | OpCode::Loop | OpCode::Snapshot(_) | OpCode::Yarv(vm::OpCode::putnil) => {
+                        OpCode::Phi | OpCode::Loop | OpCode::Yarv(vm::OpCode::putnil) => {
                             self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
                         }
                         OpCode::Yarv(vm::OpCode::putobject_INT2FIX_1_) => self.putconstant(1),

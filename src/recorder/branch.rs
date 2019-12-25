@@ -8,7 +8,7 @@ impl Recorder {
         self.nodes.push(IrNode::Guard {
             type_: ir::IrType::Yarv(value.type_()),
             snap: snap,
-            ssa_operands: vec![popped],
+            ssa_ref: popped,
         });
         ;
     }
