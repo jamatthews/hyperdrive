@@ -68,7 +68,7 @@ impl<'a> Compiler<'a> {
             })
             .expect("no LOOP opcode");
 
-        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr, self_);
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr, self_, 0);
 
         let loop_start = self.builder.create_ebb();
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode() == OpCode::Phi).collect();
@@ -92,7 +92,7 @@ impl<'a> Compiler<'a> {
         }
         self.builder.switch_to_block(loop_start);
 
-        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr, self_);
+        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr, self_, self.ssa_values.len());
 
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis
@@ -114,8 +114,9 @@ impl<'a> Compiler<'a> {
         ep: cranelift::prelude::Value,
         sp_ptr: cranelift::prelude::Value,
         self_: cranelift::prelude::Value,
+        bias: usize,
     ) {
-        for node in nodes.iter() {
+        for (i, node) in nodes.iter().enumerate() {
             match node {
                 IrNode::Constant { reference, .. } => {
                     self.putconstant(*reference as i64);
@@ -143,8 +144,9 @@ impl<'a> Compiler<'a> {
                     let sp_offset = self.builder.ins().iconst(I64, exit_frame.sp as i64);
                     let sp = self.builder.ins().iadd(ep, sp_offset);
                     self.builder.ins().store(MemFlags::new(), sp, sp_ptr, 0);
-                    let pc = self.builder.ins().iconst(I64, exit_frame.pc as i64);
-                    self.builder.ins().return_(&[pc]);
+
+                    let exit_node = self.builder.ins().iconst(I64, (i  + bias) as i64);
+                    self.builder.ins().return_(&[exit_node]);
 
                     self.builder.switch_to_block(continue_block);
                     self.ssa_values.push(self.ssa_values[*ssa_ref]);

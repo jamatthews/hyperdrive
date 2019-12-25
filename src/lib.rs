@@ -29,6 +29,7 @@ use hyperdrive_ruby::*;
 pub use capi::*;
 pub use recorder::*;
 pub use trace::*;
+use ir::*;
 pub use vm::*;
 
 lazy_static! {
@@ -123,13 +124,20 @@ fn trace_dispatch(thread: Thread) {
             let pc = thread.get_pc() as u64;
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
-                let exit_pc = trace_function(
+                let exit_node = trace_function(
                     thread.get_thread_ptr(),
                     thread.get_ep(),
                     thread.get_sp_ptr(),
                     thread.get_self(),
                 );
-                thread.set_pc(exit_pc - 8); //the width of the hot_loop instruction
+
+                let snap = match &existing_trace.nodes[exit_node as usize] {
+                    IrNode::Guard { snap, .. } => snap,
+                    _ => panic!("exit node not a guard {}")
+                };
+                let last_frame = snap.call_stack.last().unwrap();
+
+                thread.set_pc(last_frame.pc - 8); //the width of the hot_loop instruction
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
