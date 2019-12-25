@@ -24,7 +24,7 @@ pub enum IrNode {
     },
     Snapshot {
         snap: Snapshot,
-    }
+    },
 }
 
 impl IrNode {

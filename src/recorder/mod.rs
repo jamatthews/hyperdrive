@@ -59,7 +59,11 @@ impl Recorder {
             base_ep: thread.get_ep(),
             sp: sp,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, sp: sp , pc: thread.get_pc() as u64}],
+            call_stack: vec![Frame {
+                self_: 0,
+                sp: sp,
+                pc: thread.get_pc() as u64,
+            }],
         }
     }
 
@@ -181,19 +185,19 @@ impl Recorder {
                         operands: vec![],
                         ssa_operands: vec![],
                     });
-                },
+                }
                 IrNode::Guard { type_, ssa_ref, snap } => {
                     self.nodes.push(IrNode::Guard {
                         type_: type_.clone(),
                         snap: self.copy_snapshot(snap, offset),
                         ssa_ref: ssa_ref + peeled.len() + 1,
                     });
-                },
+                }
                 IrNode::Snapshot { snap } => {
                     self.nodes.push(IrNode::Snapshot {
                         snap: self.copy_snapshot(snap, offset),
                     });
-                },
+                }
                 IrNode::Basic { .. } => {
                     let (opcode, type_) = match &node.opcode() {
                         ir::OpCode::StackLoad(offset) => {
@@ -234,7 +238,7 @@ impl Recorder {
             _ => panic!("missing after snapshot"),
         };
         let before = match &self.nodes.get(idx).unwrap() {
-            IrNode::Snapshot { snap }  => snap.stack_map.clone(),
+            IrNode::Snapshot { snap } => snap.stack_map.clone(),
             _ => panic!("missing before snapshot"),
         };
 

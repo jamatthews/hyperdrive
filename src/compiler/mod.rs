@@ -119,7 +119,7 @@ impl<'a> Compiler<'a> {
             match node {
                 IrNode::Constant { reference, .. } => {
                     self.putconstant(*reference as i64);
-                },
+                }
                 IrNode::Guard { type_, ssa_ref, snap } => {
                     let value = self.ssa_values[*ssa_ref];
                     let side_exit_block = self.builder.create_ebb();
@@ -148,10 +148,10 @@ impl<'a> Compiler<'a> {
 
                     self.builder.switch_to_block(continue_block);
                     self.ssa_values.push(self.ssa_values[*ssa_ref]);
-                },
+                }
                 IrNode::Snapshot { .. } => {
                     self.putconstant(ruby_special_consts_RUBY_Qnil as i64);
-                },
+                }
                 IrNode::Basic { .. } => {
                     match &node.opcode() {
                         OpCode::LoadSelf => {
