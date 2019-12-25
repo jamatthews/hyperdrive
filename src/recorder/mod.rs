@@ -94,8 +94,12 @@ impl Recorder {
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
+        //this is to pick up the changes after a frame is pushed
         self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
         self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
+        self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
+        self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
+
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
@@ -141,6 +145,8 @@ impl Recorder {
             OpCode::leave => {
                 let ret = self.stack_pop();
                 self.call_stack.pop();
+
+                //now we need to reset the stack pointer to where it was before the call and put the result there
                 self.sp = self.call_stack.last().expect("stack underflow").sp;
                 self.stack_push(ret);
             }
@@ -152,12 +158,9 @@ impl Recorder {
     }
 
     fn snapshot(&mut self, thread: Thread) -> Snapshot {
-        let mut frames = self.call_stack.clone();
-        frames.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
-        frames.last_mut().unwrap().pc = thread.get_pc() as u64;
         Snapshot {
             stack_map: self.stack.clone(),
-            call_stack: frames,
+            call_stack: self.call_stack.clone(),
         }
     }
 
