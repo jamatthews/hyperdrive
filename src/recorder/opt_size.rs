@@ -1,7 +1,7 @@
 use super::*;
 
 impl Recorder {
-    pub fn record_opt_size(&mut self, thread: Thread, instruction: Instruction) {
+    pub fn record_opt_size(&mut self, _thread: Thread, instruction: Instruction) {
         let popped = self.stack_pop();
 
         self.nodes.push(IrNode::Basic {

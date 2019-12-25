@@ -17,6 +17,14 @@ pub enum IrNode {
         type_: IrType,
         reference: VALUE,
     },
+    Guard {
+        type_: IrType,
+        ssa_operands: Vec<SsaRef>,
+        snap: Snapshot,
+    },
+    Snapshot {
+        snap: Snapshot,
+    }
 }
 
 impl IrNode {
@@ -24,20 +32,22 @@ impl IrNode {
         match self {
             IrNode::Basic { type_, .. } => type_.clone(),
             IrNode::Constant { type_, .. } => type_.clone(),
+            IrNode::Guard { type_, .. } => type_.clone(),
+            IrNode::Snapshot { .. } => IrType::None,
         }
     }
 
     pub fn opcode(&self) -> OpCode {
         match self {
             IrNode::Basic { opcode, .. } => opcode.clone(),
-            IrNode::Constant { .. } => OpCode::None,
+            _ => OpCode::None,
         }
     }
 
     pub fn operands(&self) -> Vec<VALUE> {
         match self {
             IrNode::Basic { operands, .. } => operands.clone(),
-            IrNode::Constant { .. } => vec![],
+            _ => vec![],
         }
     }
 
@@ -45,6 +55,8 @@ impl IrNode {
         match self {
             IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
             IrNode::Constant { .. } => vec![],
+            IrNode::Guard { ssa_operands, .. } => ssa_operands.clone(),
+            IrNode::Snapshot { .. } => vec![],
         }
     }
 

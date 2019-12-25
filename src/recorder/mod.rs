@@ -104,7 +104,7 @@ impl Recorder {
         let opcode = instruction.opcode();
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
-            let snapshot = self.snapshot(thread);
+            let snapshot = self.snapshot();
             self.nodes.push(IrNode::Basic {
                 type_: IrType::None,
                 opcode: ir::OpCode::Snapshot(snapshot),
@@ -157,7 +157,7 @@ impl Recorder {
         Ok(false)
     }
 
-    fn snapshot(&mut self, thread: Thread) -> Snapshot {
+    fn snapshot(&mut self) -> Snapshot {
         Snapshot {
             stack_map: self.stack.clone(),
             call_stack: self.call_stack.clone(),
@@ -186,13 +186,17 @@ impl Recorder {
                         operands: vec![],
                         ssa_operands: vec![],
                     });
-                }
+                },
+                IrNode::Guard { type_, ssa_operands, snap } => {
+                    self.nodes.push(IrNode::Guard {
+                        type_: type_.clone(),
+                        snap: self.copy_snapshot(snap, offset),
+                        ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
+                    });
+                },
+                IrNode::Snapshot { .. } => {},
                 IrNode::Basic { .. } => {
                     let (opcode, type_) = match &node.opcode() {
-                        ir::OpCode::Guard(type_, snap) => (
-                            ir::OpCode::Guard(type_.clone(), self.copy_snapshot(snap, offset)),
-                            node.type_(),
-                        ),
                         ir::OpCode::Snapshot(snap) => {
                             (ir::OpCode::Snapshot(self.copy_snapshot(snap, offset)), node.type_())
                         }
