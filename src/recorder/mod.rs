@@ -63,6 +63,7 @@ impl Recorder {
             call_stack: vec![Frame {
                 self_: 0,
                 sp: sp,
+                bp: 0, //BP is base BP
                 pc: thread.get_pc() as u64,
             }],
         }
@@ -103,6 +104,7 @@ impl Recorder {
         self.ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
         self.sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
         self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
+        self.call_stack.last_mut().unwrap().bp = (thread.get_bp() as u64 - self.base_bp as u64) as isize;
         self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
 
         let instruction = Instruction::new(thread.get_pc());

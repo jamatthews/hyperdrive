@@ -24,6 +24,7 @@ impl Recorder {
             self.call_stack.push(Frame {
                 self_: receiver,
                 sp: self.sp,
+                bp: self.sp, //actual value will be set when we record the next instruction
                 pc: thread.get_pc() as u64,
             });
         }

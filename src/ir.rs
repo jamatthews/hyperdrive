@@ -87,6 +87,7 @@ pub struct Frame {
     pub self_: SsaRef,
     pub pc: u64,
     pub sp: isize,
+    pub bp: isize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
