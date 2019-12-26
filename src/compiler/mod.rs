@@ -55,9 +55,8 @@ impl<'a> Compiler<'a> {
         self.builder.switch_to_block(entry_block);
         self.builder.append_ebb_params_for_function_params(entry_block);
         let _thread = self.builder.ebb_params(entry_block)[0];
-        let ep = self.builder.ebb_params(entry_block)[1];
-        let sp_ptr = self.builder.ebb_params(entry_block)[2];
-        let self_ = self.builder.ebb_params(entry_block)[3];
+        let base_bp = self.builder.ebb_params(entry_block)[1];
+        let self_ = self.builder.ebb_params(entry_block)[2];
 
         let partition = trace
             .nodes
@@ -68,7 +67,7 @@ impl<'a> Compiler<'a> {
             })
             .expect("no LOOP opcode");
 
-        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), ep, sp_ptr, self_, 0);
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), base_bp, self_, 0);
 
         let loop_start = self.builder.create_ebb();
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode() == OpCode::Phi).collect();
@@ -92,7 +91,7 @@ impl<'a> Compiler<'a> {
         }
         self.builder.switch_to_block(loop_start);
 
-        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), ep, sp_ptr, self_, self.ssa_values.len());
+        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), base_bp, self_, self.ssa_values.len());
 
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis
@@ -111,8 +110,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         nodes: Vec<IrNode>,
         trace: Trace,
-        ep: cranelift::prelude::Value,
-        sp_ptr: cranelift::prelude::Value,
+        base_bp: cranelift::prelude::Value,
         self_: cranelift::prelude::Value,
         bias: usize,
     ) {
@@ -137,7 +135,7 @@ impl<'a> Compiler<'a> {
 
                     for (offset, ssa_ref) in snap.stack_map.iter() {
                         let boxed = self.box_(self.ssa_values[*ssa_ref], &trace.nodes[*ssa_ref]);
-                        self.builder.ins().store(MemFlags::new(), boxed, ep, *offset as i32);
+                        self.builder.ins().store(MemFlags::new(), boxed, base_bp, *offset as i32);
                     }
 
                     let exit_node = self.builder.ins().iconst(I64, (i  + bias) as i64);
@@ -165,7 +163,7 @@ impl<'a> Compiler<'a> {
                         OpCode::Yarv(vm::OpCode::putobject_INT2FIX_0_) => self.putconstant(0),
                         OpCode::Yarv(vm::OpCode::opt_plus) => self.binary_op(node),
                         OpCode::StackLoad(offset) => {
-                            let boxed = self.builder.ins().load(I64, MemFlags::new(), ep, *offset as i32);
+                            let boxed = self.builder.ins().load(I64, MemFlags::new(), base_bp, *offset as i32);
                             let unboxed = self.unbox(boxed, &node);
                             self.ssa_values.push(unboxed);
                         }

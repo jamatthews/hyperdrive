@@ -15,6 +15,10 @@ impl Thread {
         self.thread as *const u64
     }
 
+    pub fn get_bp(&self) -> *const VALUE {
+        unsafe { (*(*(*self.thread).ec).cfp).bp }
+    }
+
     pub fn get_pc(&self) -> *const VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).pc }
     }

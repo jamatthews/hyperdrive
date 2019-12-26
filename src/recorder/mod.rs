@@ -32,7 +32,7 @@ pub struct Recorder {
     pub nodes: IrNodes,
     pub anchor: u64,
     stack: HashMap<isize, SsaRef>,
-    base_ep: *const u64,
+    base_bp: *const u64,
     sp: isize,
     ep: isize,
     call_stack: Vec<Frame>,
@@ -51,14 +51,15 @@ impl Recorder {
             ssa_operands: vec![],
         }];
 
-        let sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize; //keep SP as relative so we can restore relative to EP
+        let sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
+        let ep = (thread.get_ep() as u64 - thread.get_bp() as u64) as isize;
         Self {
             nodes: nodes,
             stack: HashMap::new(),
             anchor: thread.get_pc() as u64,
-            base_ep: thread.get_ep(),
+            base_bp: thread.get_bp(),
             sp: sp,
-            ep: 0,
+            ep: ep,
             call_stack: vec![Frame {
                 self_: 0,
                 sp: sp,
@@ -79,7 +80,7 @@ impl Recorder {
         let ret = match self.stack.remove(&self.sp) {
             Some(ssa_ref) => ssa_ref,
             None => {
-                let value: Value = unsafe { *self.base_ep.offset(self.sp) }.into();
+                let value: Value = unsafe { *self.base_bp.offset(self.sp) }.into();
                 self.nodes.push(IrNode::Basic {
                     type_: IrType::Yarv(value.type_()),
                     opcode: ir::OpCode::StackLoad(self.sp),
@@ -99,9 +100,9 @@ impl Recorder {
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
         //this is to pick up the changes after a frame is pushed
-        self.ep = (thread.get_ep() as u64 - self.base_ep as u64) as isize;
-        self.sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
-        self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_ep as u64) as isize;
+        self.ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
+        self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
         self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
 
         let instruction = Instruction::new(thread.get_pc());
