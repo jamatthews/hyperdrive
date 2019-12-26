@@ -1,3 +1,4 @@
+use hyperdrive_ruby::rb_control_frame_struct;
 use hyperdrive_ruby::rb_thread_t;
 use hyperdrive_ruby::VALUE;
 
@@ -15,8 +16,8 @@ impl Thread {
         self.thread as *const u64
     }
 
-    pub fn get_bp(&self) -> *const VALUE {
-        unsafe { (*(*(*self.thread).ec).cfp).bp }
+    pub fn get_cf(&self) -> rb_control_frame_struct {
+        unsafe { *(*(*self.thread).ec).cfp }
     }
 
     pub fn get_pc(&self) -> *const VALUE {
@@ -35,6 +36,14 @@ impl Thread {
         unsafe { (*(*(*self.thread).ec).cfp).sp = target as *mut u64 };
     }
 
+    pub fn get_bp(&self) -> *const VALUE {
+        unsafe { (*(*(*self.thread).ec).cfp).bp }
+    }
+
+    pub fn set_bp(&self, target: u64) {
+        unsafe { (*(*(*self.thread).ec).cfp).bp = target as *mut u64 };
+    }
+
     pub fn get_sp_ptr(&self) -> *const *mut VALUE {
         unsafe { (&(*(*(*self.thread).ec).cfp).sp) as *const _ }
     }
@@ -49,5 +58,13 @@ impl Thread {
 
     pub fn get_local(&self, offset: u64) -> VALUE {
         unsafe { *self.get_ep().offset(-(offset as isize)) }
+    }
+
+    pub fn push_frame(&self) {
+        unsafe {
+            let new_frame = (*(*self.thread).ec).cfp.offset(-1);
+            *new_frame = *(*(*self.thread).ec).cfp.clone();
+            (*(*self.thread).ec).cfp = new_frame;
+        }
     }
 }

@@ -10,6 +10,5 @@ impl Recorder {
             snap: snap,
             ssa_ref: popped,
         });
-        ;
     }
 }

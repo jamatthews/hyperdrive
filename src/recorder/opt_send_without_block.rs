@@ -17,14 +17,15 @@ impl Recorder {
             });
             self.stack_push(self.nodes.len() - 1);
         } else {
+            //pop receiver and args
             let receiver = self.stack_n(call_info.get_orig_argc() as usize);
-
-            //the stack pointer needs to be dropped as if the call happened, before we make the actual call
             self.call_stack.last_mut().unwrap().sp = self.sp - 8 - call_info.get_orig_argc() as isize * 8;
+
+            //actual values will be updated when recording the next instruction
             self.call_stack.push(Frame {
                 self_: receiver,
                 sp: self.sp,
-                bp: self.sp, //actual value will be set when we record the next instruction
+                bp: self.sp,
                 pc: thread.get_pc() as u64,
             });
         }

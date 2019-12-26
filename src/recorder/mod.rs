@@ -51,7 +51,7 @@ impl Recorder {
             ssa_operands: vec![],
         }];
 
-        let sp = (thread.get_sp() as u64 - thread.get_ep() as u64) as isize;
+        let sp = (thread.get_sp() as u64 - thread.get_bp() as u64) as isize;
         let ep = (thread.get_ep() as u64 - thread.get_bp() as u64) as isize;
         Self {
             nodes: nodes,
@@ -146,9 +146,12 @@ impl Recorder {
             OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
             OpCode::leave => {
                 let ret = self.stack_pop();
+                // self.call_stack.last_mut().expect("stack underflow").bp = self.sp;
+                let top = self.call_stack.last().unwrap().clone();
                 self.call_stack.pop();
-
                 //now we need to reset the stack pointer to where it was before the call and put the result there
+                let next = self.call_stack.last().expect("stack underflow");
+                //println!("top {:#?} next {:#?}", top, next);
                 self.sp = self.call_stack.last().expect("stack underflow").sp;
                 self.stack_push(ret);
             }
