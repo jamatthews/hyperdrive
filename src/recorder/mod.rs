@@ -65,7 +65,8 @@ impl Recorder {
                 sp: sp,
                 bp: 0, //BP is base BP
                 pc: thread.get_pc() as u64,
-                iseq: thread.get_iseq()
+                iseq: thread.get_iseq(),
+                ep: ep,
             }],
         }
     }
@@ -141,12 +142,7 @@ impl Recorder {
             OpCode::setlocal_WC_0 => self.record_setlocal(thread, instruction),
             OpCode::leave => {
                 let ret = self.stack_pop();
-                // self.call_stack.last_mut().expect("stack underflow").bp = self.sp;
-                let top = self.call_stack.last().unwrap().clone();
                 self.call_stack.pop();
-                //now we need to reset the stack pointer to where it was before the call and put the result there
-                let next = self.call_stack.last().expect("stack underflow");
-                //println!("top {:#?} next {:#?}", top, next);
                 self.sp = self.call_stack.last().expect("stack underflow").sp;
                 self.stack_push(ret);
             }
@@ -276,8 +272,19 @@ impl Recorder {
 
         self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
         self.call_stack.last_mut().unwrap().bp = (thread.get_bp() as u64 - self.base_bp as u64) as isize;
+        self.call_stack.last_mut().unwrap().ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
         self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
         self.call_stack.last_mut().unwrap().iseq = thread.get_iseq();
+
+        let previous_frame = self.call_stack.len() as isize - 2;
+        if previous_frame >= 0 {
+            let frame = self.call_stack.get_mut(previous_frame as usize).unwrap();
+            frame.sp = (thread.get_prev_cf().sp as u64 - self.base_bp as u64) as isize;
+            frame.bp = (thread.get_prev_cf().bp as u64 - self.base_bp as u64) as isize;
+            frame.ep = (thread.get_prev_cf().ep as u64 - self.base_bp as u64) as isize;
+            frame.pc = thread.get_prev_cf().pc as u64;
+            frame.iseq = thread.get_prev_cf().iseq;
+        }
     }
 }
 

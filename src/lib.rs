@@ -141,6 +141,8 @@ fn trace_dispatch(thread: Thread) {
                 for (i,frame) in snap.call_stack.iter().enumerate() {
                     thread.set_bp(base_bp + frame.bp as u64);
                     thread.set_sp(base_bp + frame.sp as u64);
+                    thread.set_ep(base_bp + frame.ep as u64);
+                    thread.set_iseq(frame.iseq);
 
                     if i < snap.call_stack.len() - 1 {
                         thread.set_pc(frame.pc);
@@ -149,7 +151,6 @@ fn trace_dispatch(thread: Thread) {
                         thread.set_pc(frame.pc - 8);
                     }
                 }
-
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();

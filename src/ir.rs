@@ -90,6 +90,7 @@ pub struct Frame {
     pub sp: isize,
     pub bp: isize,
     pub iseq: *const rb_iseq_struct,
+    pub ep: isize,
 }
 
 #[derive(Clone, Debug, PartialEq)]

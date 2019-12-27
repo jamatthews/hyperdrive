@@ -21,6 +21,10 @@ impl Thread {
         unsafe { *(*(*self.thread).ec).cfp }
     }
 
+    pub fn get_prev_cf(&self) -> rb_control_frame_struct {
+        unsafe { *(*(*self.thread).ec).cfp.offset(1) }
+    }
+
     pub fn get_pc(&self) -> *const VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).pc }
     }
@@ -31,6 +35,14 @@ impl Thread {
 
     pub fn get_sp(&self) -> *const VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).sp }
+    }
+
+    pub fn get_ep(&self) -> *const VALUE {
+        unsafe { (*(*(*self.thread).ec).cfp).ep }
+    }
+
+    pub fn set_ep(&self, target: u64) {
+        unsafe { (*(*(*self.thread).ec).cfp).ep = target as *mut u64 };
     }
 
     pub fn set_sp(&self, target: u64) {
@@ -49,10 +61,6 @@ impl Thread {
         unsafe { (&(*(*(*self.thread).ec).cfp).sp) as *const _ }
     }
 
-    pub fn get_ep(&self) -> *const VALUE {
-        unsafe { (*(*(*self.thread).ec).cfp).ep }
-    }
-
     pub fn get_self(&self) -> VALUE {
         unsafe { (*(*(*self.thread).ec).cfp).self_ }
     }
@@ -65,10 +73,14 @@ impl Thread {
         unsafe { (*(*(*self.thread).ec).cfp).iseq }
     }
 
+    pub fn set_iseq(&self, target: *const rb_iseq_struct) {
+        unsafe { (*(*(*self.thread).ec).cfp).iseq = target };
+    }
+
     pub fn push_frame(&self) {
         unsafe {
             let new_frame = (*(*self.thread).ec).cfp.offset(-1);
-            *new_frame = *(*(*self.thread).ec).cfp.clone();
+            *new_frame = (*(*(*self.thread).ec).cfp).clone();
             (*(*self.thread).ec).cfp = new_frame;
         }
     }
