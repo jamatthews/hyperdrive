@@ -143,6 +143,7 @@ fn trace_dispatch(thread: Thread) {
                     thread.set_sp(base_bp + frame.sp as u64);
 
                     if i < snap.call_stack.len() - 1 {
+                        thread.set_pc(frame.pc);
                         thread.push_frame();
                     } else {
                         thread.set_pc(frame.pc - 8);
