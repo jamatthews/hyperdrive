@@ -1,3 +1,4 @@
+use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::rb_control_frame_struct;
 use hyperdrive_ruby::rb_thread_t;
 use hyperdrive_ruby::VALUE;
@@ -58,6 +59,10 @@ impl Thread {
 
     pub fn get_local(&self, offset: u64) -> VALUE {
         unsafe { *self.get_ep().offset(-(offset as isize)) }
+    }
+
+    pub fn get_iseq(&self) -> *const rb_iseq_struct {
+        unsafe { (*(*(*self.thread).ec).cfp).iseq }
     }
 
     pub fn push_frame(&self) {

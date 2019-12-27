@@ -27,6 +27,7 @@ impl Recorder {
                 sp: self.sp,
                 bp: self.sp,
                 pc: thread.get_pc() as u64,
+                iseq: thread.get_iseq(),
             });
         }
     }

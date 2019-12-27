@@ -1,3 +1,4 @@
+use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::VALUE;
 use std::collections::HashMap;
 use vm;
@@ -88,6 +89,7 @@ pub struct Frame {
     pub pc: u64,
     pub sp: isize,
     pub bp: isize,
+    pub iseq: *const rb_iseq_struct,
 }
 
 #[derive(Clone, Debug, PartialEq)]

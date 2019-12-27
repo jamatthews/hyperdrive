@@ -65,6 +65,7 @@ impl Recorder {
                 sp: sp,
                 bp: 0, //BP is base BP
                 pc: thread.get_pc() as u64,
+                iseq: thread.get_iseq()
             }],
         }
     }
@@ -100,13 +101,7 @@ impl Recorder {
     }
 
     pub fn record_instruction(&mut self, thread: Thread) -> Result<bool, String> {
-        //this is to pick up the changes after a frame is pushed
-        self.ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
-        self.sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
-        self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
-        self.call_stack.last_mut().unwrap().bp = (thread.get_bp() as u64 - self.base_bp as u64) as isize;
-        self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
-
+        self.sync_vm_state(&thread);
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
 
@@ -272,6 +267,17 @@ impl Recorder {
                 self.nodes.len() - 1
             }
         }
+    }
+
+    fn sync_vm_state(&mut self, thread: &Thread) {
+        //this is to pick up the changes after a frame is pushed
+        self.ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
+        self.sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
+
+        self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
+        self.call_stack.last_mut().unwrap().bp = (thread.get_bp() as u64 - self.base_bp as u64) as isize;
+        self.call_stack.last_mut().unwrap().pc = thread.get_pc() as u64;
+        self.call_stack.last_mut().unwrap().iseq = thread.get_iseq();
     }
 }
 

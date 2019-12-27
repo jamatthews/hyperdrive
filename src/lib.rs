@@ -139,16 +139,15 @@ fn trace_dispatch(thread: Thread) {
                 };
 
                 for (i,frame) in snap.call_stack.iter().enumerate() {
-
-                    thread.set_pc(frame.pc - 8);
                     thread.set_bp(base_bp + frame.bp as u64);
                     thread.set_sp(base_bp + frame.sp as u64);
 
                     if i < snap.call_stack.len() - 1 {
                         thread.push_frame();
+                    } else {
+                        thread.set_pc(frame.pc - 8);
                     }
                 }
-
 
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
