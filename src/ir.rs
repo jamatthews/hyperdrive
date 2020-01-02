@@ -1,6 +1,6 @@
 use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::VALUE;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use vm;
 use vm::*;
 
@@ -95,7 +95,7 @@ pub struct Frame {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
-    pub stack_map: HashMap<isize, SsaRef>,
+    pub stack_map: BTreeMap<isize, SsaRef>,
     pub call_stack: Vec<Frame>,
 }
 

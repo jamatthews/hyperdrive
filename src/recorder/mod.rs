@@ -22,7 +22,7 @@ mod setlocal_wc_0;
 
 use ir;
 use ir::*;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use trace::IrNodes;
 use vm::OpCode;
 use vm::*;
@@ -31,7 +31,7 @@ use vm::*;
 pub struct Recorder {
     pub nodes: IrNodes,
     pub anchor: u64,
-    stack: HashMap<isize, SsaRef>,
+    stack: BTreeMap<isize, SsaRef>,
     base_bp: *const u64,
     sp: isize,
     ep: isize,
@@ -55,7 +55,7 @@ impl Recorder {
         let ep = (thread.get_ep() as u64 - thread.get_bp() as u64) as isize;
         Self {
             nodes: nodes,
-            stack: HashMap::new(),
+            stack: BTreeMap::new(),
             anchor: thread.get_pc() as u64,
             base_bp: thread.get_bp(),
             sp: sp,
@@ -219,7 +219,7 @@ impl Recorder {
     }
 
     fn copy_snapshot(&self, snap: &Snapshot, bias: usize) -> Snapshot {
-        let mut updated = HashMap::new();
+        let mut updated = BTreeMap::new();
         for (offset, ssa_ref) in snap.stack_map.iter() {
             updated.insert(offset.clone(), ssa_ref + bias);
         }
