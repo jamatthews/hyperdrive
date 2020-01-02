@@ -18,8 +18,6 @@ pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
     pub compiled_code: Option<fn(*const VALUE, *const VALUE, VALUE) -> u64>,
-    pub self_: VALUE,
-    pub sp_base: u64,
 }
 
 impl Trace {
@@ -28,8 +26,6 @@ impl Trace {
             anchor: thread.get_pc() as u64,
             nodes: nodes,
             compiled_code: None,
-            self_: thread.get_self(),
-            sp_base: thread.get_sp() as u64,
         }
     }
 
@@ -48,9 +44,8 @@ impl Trace {
         module.finalize_definitions();
         let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code = Some(unsafe {
-            transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> u64>(compiled_code)
-        });
+        self.compiled_code =
+            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> u64>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
@@ -69,7 +64,7 @@ impl Trace {
         codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         codegen_context.func.signature.params.push(AbiParam::new(types::I64));
         codegen_context.func.signature.params.push(AbiParam::new(types::I64));
-        
+
         // Exit Node
         codegen_context.func.signature.returns.push(AbiParam::new(types::I64));
 

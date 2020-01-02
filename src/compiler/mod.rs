@@ -91,7 +91,13 @@ impl<'a> Compiler<'a> {
         }
         self.builder.switch_to_block(loop_start);
 
-        self.translate_nodes(trace.nodes[partition..].to_vec(), trace.clone(), base_bp, self_, self.ssa_values.len());
+        self.translate_nodes(
+            trace.nodes[partition..].to_vec(),
+            trace.clone(),
+            base_bp,
+            self_,
+            self.ssa_values.len(),
+        );
 
         //jumping back to the loop we use the dominating values from the right hand side of the PHI node
         let phi_params: Vec<_> = phis
@@ -135,10 +141,12 @@ impl<'a> Compiler<'a> {
 
                     for (offset, ssa_ref) in snap.stack_map.iter() {
                         let boxed = self.box_(self.ssa_values[*ssa_ref], &trace.nodes[*ssa_ref]);
-                        self.builder.ins().store(MemFlags::new(), boxed, base_bp, *offset as i32);
+                        self.builder
+                            .ins()
+                            .store(MemFlags::new(), boxed, base_bp, *offset as i32);
                     }
 
-                    let exit_node = self.builder.ins().iconst(I64, (i  + bias) as i64);
+                    let exit_node = self.builder.ins().iconst(I64, (i + bias) as i64);
                     self.builder.ins().return_(&[exit_node]);
 
                     self.builder.switch_to_block(continue_block);

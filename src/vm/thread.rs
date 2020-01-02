@@ -1,5 +1,5 @@
-use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::rb_control_frame_struct;
+use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::rb_thread_t;
 use hyperdrive_ruby::VALUE;
 
