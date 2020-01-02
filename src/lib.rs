@@ -15,6 +15,7 @@ mod recorder;
 mod trace;
 mod vm;
 
+use std::pin::Pin;
 use cranelift::prelude::*;
 use cranelift_codegen::ir::types::I64;
 use cranelift_codegen::isa::CallConv;
@@ -105,7 +106,7 @@ struct Hyperdrive {
     pub mode: Mode,
     pub counters: HashMap<u64, u64>,
     pub failures: HashMap<u64, u64>,
-    pub trace_heads: HashMap<u64, Trace>,
+    pub trace_heads: HashMap<u64, Pin<Box<Trace>>>,
     pub module: Module<SimpleJITBackend>,
 }
 
@@ -125,9 +126,9 @@ fn trace_dispatch(thread: Thread) {
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
                 let base_bp = thread.get_bp() as u64;
-                let exit_node = trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
-
-                let snap = match &existing_trace.nodes[exit_node as usize] {
+                let exit_node: *const IrNode = trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
+                let exit_node = unsafe { &*exit_node };
+                let snap = match exit_node {
                     IrNode::Guard { snap, .. } => snap,
                     _ => panic!("exit node not a guard {}"),
                 };
@@ -165,7 +166,7 @@ fn trace_record_instruction(thread: Thread) {
     match &mut hyperdrive.mode {
         Mode::Recording(recorder) => match recorder.record_instruction(thread.clone()) {
             Ok(true) => {
-                let mut trace = Trace::new(recorder.nodes.clone(), thread.clone());
+                let mut trace = Pin::new(Box::new(Trace::new(recorder.nodes.clone(), thread.clone())));
                 trace.compile(&mut hyperdrive.module);
                 hyperdrive.trace_heads.insert(trace.anchor, trace);
                 hyperdrive.mode = Mode::Normal;

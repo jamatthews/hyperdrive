@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use cranelift::prelude::*;
 use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::Context;
@@ -17,7 +18,7 @@ pub type IrNodes = Vec<IrNode>;
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
-    pub compiled_code: Option<fn(*const VALUE, *const VALUE, VALUE) -> u64>,
+    pub compiled_code: Option<fn(*const VALUE, *const VALUE, VALUE) -> *const IrNode>,
 }
 
 impl Trace {
@@ -35,7 +36,7 @@ impl Trace {
         let mut builder_context = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
         let mut compiler = Compiler::new(module, builder);
-        compiler.compile(self.clone());
+        compiler.compile(self);
 
         module
             .define_function(func_id, &mut codegen_context)
@@ -44,8 +45,7 @@ impl Trace {
         module.finalize_definitions();
         let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code =
-            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> u64>(compiled_code) });
+        self.compiled_code = Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> *const IrNode>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {
@@ -54,7 +54,7 @@ impl Trace {
         let mut builder_context = FunctionBuilderContext::new();
         let builder = FunctionBuilder::new(&mut codegen_context.func, &mut builder_context);
         let mut compiler = Compiler::new(module, builder);
-        compiler.compile(self.clone());
+        compiler.compile(self);
         compiler.preview().unwrap()
     }
 

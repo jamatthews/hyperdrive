@@ -50,7 +50,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn compile(&mut self, trace: Trace) {
+    pub fn compile(&mut self, trace: &Trace) {
         let entry_block = self.builder.create_ebb();
         self.builder.switch_to_block(entry_block);
         self.builder.append_ebb_params_for_function_params(entry_block);
@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
             })
             .expect("no LOOP opcode");
 
-        self.translate_nodes(trace.nodes[..partition].to_vec(), trace.clone(), base_bp, self_, 0);
+        self.translate_nodes(trace.nodes[..partition].to_vec(), trace, base_bp, self_, 0);
 
         let loop_start = self.builder.create_ebb();
         let phis: Vec<&IrNode> = trace.nodes.iter().filter(|n| n.opcode() == OpCode::Phi).collect();
@@ -93,7 +93,7 @@ impl<'a> Compiler<'a> {
 
         self.translate_nodes(
             trace.nodes[partition..].to_vec(),
-            trace.clone(),
+            trace,
             base_bp,
             self_,
             self.ssa_values.len(),
@@ -115,7 +115,7 @@ impl<'a> Compiler<'a> {
     fn translate_nodes(
         &mut self,
         nodes: Vec<IrNode>,
-        trace: Trace,
+        trace: &Trace,
         base_bp: cranelift::prelude::Value,
         self_: cranelift::prelude::Value,
         bias: usize,
@@ -146,7 +146,9 @@ impl<'a> Compiler<'a> {
                             .store(MemFlags::new(), boxed, base_bp, *offset as i32);
                     }
 
-                    let exit_node = self.builder.ins().iconst(I64, (i + bias) as i64);
+                    let exit_node = &trace.nodes[i + bias] as *const IrNode;
+                    let exit_node = self.builder.ins().iconst(I64, exit_node as i64);
+
                     self.builder.ins().return_(&[exit_node]);
 
                     self.builder.switch_to_block(continue_block);
