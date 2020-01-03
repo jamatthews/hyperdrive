@@ -1,4 +1,5 @@
 use super::*;
+use std::cell::Cell;
 
 impl Recorder {
     pub fn record_branch(&mut self, thread: Thread, _instruction: Instruction) {
@@ -9,6 +10,7 @@ impl Recorder {
             type_: ir::IrType::Yarv(value.type_()),
             snap: snap,
             ssa_ref: popped,
+            exit_count: Cell::new(0),
         });
     }
 }

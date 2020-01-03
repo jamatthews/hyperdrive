@@ -20,6 +20,7 @@ mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
+use std::cell::Cell;
 use ir;
 use ir::*;
 use std::collections::BTreeMap;
@@ -183,11 +184,12 @@ impl Recorder {
                         ssa_operands: vec![],
                     });
                 }
-                IrNode::Guard { type_, ssa_ref, snap } => {
+                IrNode::Guard { type_, ssa_ref, snap, .. } => {
                     self.nodes.push(IrNode::Guard {
                         type_: type_.clone(),
                         snap: self.copy_snapshot(snap, offset),
                         ssa_ref: ssa_ref + peeled.len() + 1,
+                        exit_count: Cell::new(0),
                     });
                 }
                 IrNode::Snapshot { snap } => {

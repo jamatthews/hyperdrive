@@ -15,6 +15,7 @@ mod recorder;
 mod trace;
 mod vm;
 
+use std::cell::Cell;
 use std::pin::Pin;
 use cranelift::prelude::*;
 use cranelift_codegen::ir::types::I64;
@@ -128,8 +129,8 @@ fn trace_dispatch(thread: Thread) {
                 let base_bp = thread.get_bp() as u64;
                 let exit_node: *const IrNode = trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
                 let exit_node = unsafe { &*exit_node };
-                let snap = match exit_node {
-                    IrNode::Guard { snap, .. } => snap,
+                let (snap, exit_count) = match exit_node {
+                    IrNode::Guard { snap, exit_count, .. } => (snap, exit_count),
                     _ => panic!("exit node not a guard {}"),
                 };
 
@@ -146,6 +147,7 @@ fn trace_dispatch(thread: Thread) {
                         thread.set_pc(frame.pc - 8);
                     }
                 }
+                exit_count.set(exit_count.get() + 1);
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();

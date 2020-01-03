@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::VALUE;
 use std::collections::BTreeMap;
@@ -22,6 +23,7 @@ pub enum IrNode {
         type_: IrType,
         ssa_ref: SsaRef,
         snap: Snapshot,
+        exit_count: Cell<u64>,
     },
     Snapshot {
         snap: Snapshot,
