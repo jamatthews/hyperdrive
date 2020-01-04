@@ -215,6 +215,7 @@ impl Recorder {
                         ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
                     });
                 }
+                _ => {},
             }
         }
         self.phi(peeled.len() - 1);

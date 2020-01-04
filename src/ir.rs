@@ -25,6 +25,11 @@ pub enum IrNode {
         snap: Snapshot,
         exit_count: Cell<u64>,
     },
+    Branch {
+        type_: IrType,
+        ssa_ref: SsaRef,
+        nodes: Vec<IrNode>,
+    },
     Snapshot {
         snap: Snapshot,
     },
@@ -36,6 +41,7 @@ impl IrNode {
             IrNode::Basic { type_, .. } => type_.clone(),
             IrNode::Constant { type_, .. } => type_.clone(),
             IrNode::Guard { type_, .. } => type_.clone(),
+            IrNode::Branch { type_, .. } => type_.clone(),
             IrNode::Snapshot { .. } => IrType::None,
         }
     }
@@ -57,9 +63,8 @@ impl IrNode {
     pub fn ssa_operands(&self) -> Vec<SsaRef> {
         match self {
             IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
-            IrNode::Constant { .. } => vec![],
-            IrNode::Guard { ssa_ref, .. } => vec![*ssa_ref],
-            IrNode::Snapshot { .. } => vec![],
+            IrNode::Guard { ssa_ref, .. } |  IrNode::Branch { ssa_ref, .. } => vec![*ssa_ref],
+            _ => vec![],
         }
     }
 

@@ -15,7 +15,6 @@ mod recorder;
 mod trace;
 mod vm;
 
-use std::cell::Cell;
 use std::pin::Pin;
 use cranelift::prelude::*;
 use cranelift_codegen::ir::types::I64;

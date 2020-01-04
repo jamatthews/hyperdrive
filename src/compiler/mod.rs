@@ -122,6 +122,7 @@ impl<'a> Compiler<'a> {
     ) {
         for (i, node) in nodes.iter().enumerate() {
             match node {
+                IrNode::Branch { .. } => {}
                 IrNode::Constant { reference, .. } => {
                     self.putconstant(*reference as i64);
                 }

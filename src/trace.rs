@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use cranelift::prelude::*;
 use cranelift_codegen::isa::CallConv;
 use cranelift_codegen::Context;

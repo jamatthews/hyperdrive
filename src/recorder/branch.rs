@@ -1,5 +1,4 @@
 use super::*;
-use std::cell::Cell;
 
 impl Recorder {
     pub fn record_branch(&mut self, thread: Thread, _instruction: Instruction) {
