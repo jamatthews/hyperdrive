@@ -35,7 +35,6 @@ pub struct Recorder {
     stack: BTreeMap<isize, SsaRef>,
     base_bp: *const u64,
     sp: isize,
-    ep: isize,
     call_stack: Vec<Frame>,
 }
 
@@ -60,7 +59,6 @@ impl Recorder {
             anchor: thread.get_pc() as u64,
             base_bp: thread.get_bp(),
             sp: sp,
-            ep: ep,
             call_stack: vec![Frame {
                 self_: 0,
                 sp: sp,
@@ -272,7 +270,6 @@ impl Recorder {
 
     fn sync_vm_state(&mut self, thread: &Thread) {
         //this is to pick up the changes after a frame is pushed
-        self.ep = (thread.get_ep() as u64 - self.base_bp as u64) as isize;
         self.sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;
 
         self.call_stack.last_mut().unwrap().sp = (thread.get_sp() as u64 - self.base_bp as u64) as isize;

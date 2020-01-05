@@ -5,7 +5,7 @@ impl Recorder {
         let offset = instruction.get_operand(0);
         let value: Value = thread.get_local(offset).into();
 
-        let offset_from_base_bp = self.ep - (offset as isize * 8);
+        let offset_from_base_bp = self.call_stack.last().unwrap().ep - (offset as isize * 8);
 
         let ssa_ref = match self.stack.get(&offset_from_base_bp) {
             Some(ssa_ref) => *ssa_ref,
