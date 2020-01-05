@@ -301,12 +301,12 @@ mod tests {
     fn it_deduplicates_constants() {
         let mut recorder = Recorder {
             nodes: vec![],
-            stack: HashMap::new(),
+            stack: BTreeMap::new(),
             anchor: 0,
             base_bp: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, pc: 0, sp: 0 }],
+            call_stack: vec![fake_frame()],
         };
 
         let recorded_node = IrNode::Constant {
@@ -323,12 +323,12 @@ mod tests {
     fn it_does_not_deduplicate_stores() {
         let mut recorder = Recorder {
             nodes: vec![],
-            stack: HashMap::new(),
+            stack: BTreeMap::new(),
             anchor: 0,
             base_bp: 0 as *const u64,
             sp: 1,
             ep: 0,
-            call_stack: vec![Frame { self_: 0, pc: 0, sp: 0 }],
+            call_stack: vec![fake_frame()],
         };
 
         let recorded_node = IrNode::Basic {
@@ -341,5 +341,9 @@ mod tests {
         let a = recorder.emit(recorded_node.clone());
         let b = recorder.emit(recorded_node.clone());
         assert_eq!(recorder.nodes.len(), 2);
+    }
+
+    fn fake_frame() -> Frame {
+        Frame { self_: 0, pc: 0, sp: 0, bp: 0, ep: 0, iseq: 0 as *const _ }
     }
 }
