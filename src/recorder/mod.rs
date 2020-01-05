@@ -304,7 +304,6 @@ mod tests {
             anchor: 0,
             base_bp: 0 as *const u64,
             sp: 1,
-            ep: 0,
             call_stack: vec![fake_frame()],
         };
 
@@ -326,7 +325,6 @@ mod tests {
             anchor: 0,
             base_bp: 0 as *const u64,
             sp: 1,
-            ep: 0,
             call_stack: vec![fake_frame()],
         };
 
