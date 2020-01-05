@@ -13,7 +13,6 @@ use compiler::Compiler;
 
 pub type IrNodes = Vec<IrNode>;
 
-#[derive(Clone)]
 pub struct Trace {
     pub nodes: IrNodes,
     pub anchor: u64,
