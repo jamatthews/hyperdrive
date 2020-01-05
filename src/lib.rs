@@ -15,13 +15,13 @@ mod recorder;
 mod trace;
 mod vm;
 
-use std::pin::Pin;
 use cranelift::prelude::*;
 use cranelift_codegen::ir::types::I64;
 use cranelift_codegen::isa::CallConv;
 use cranelift_module::*;
 use cranelift_simplejit::*;
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Mutex;
 
 use hyperdrive_ruby::*;
@@ -126,7 +126,8 @@ fn trace_dispatch(thread: Thread) {
             if let Some(existing_trace) = hyperdrive.trace_heads.get(&pc) {
                 let trace_function = existing_trace.compiled_code.unwrap();
                 let base_bp = thread.get_bp() as u64;
-                let exit_node: *const IrNode = trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
+                let exit_node: *const IrNode =
+                    trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
                 let exit_node = unsafe { &*exit_node };
                 let (snap, exit_count) = match exit_node {
                     IrNode::Guard { snap, exit_count, .. } => (snap, exit_count),

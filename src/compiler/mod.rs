@@ -126,7 +126,9 @@ impl<'a> Compiler<'a> {
                 IrNode::Constant { reference, .. } => {
                     self.putconstant(*reference as i64);
                 }
-                IrNode::Guard { type_, ssa_ref, snap, .. } => {
+                IrNode::Guard {
+                    type_, ssa_ref, snap, ..
+                } => {
                     let value = self.ssa_values[*ssa_ref];
                     let side_exit_block = self.builder.create_ebb();
 

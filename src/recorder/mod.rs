@@ -20,9 +20,9 @@ mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
-use std::cell::Cell;
 use ir;
 use ir::*;
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use trace::IrNodes;
 use vm::OpCode;
@@ -184,7 +184,9 @@ impl Recorder {
                         ssa_operands: vec![],
                     });
                 }
-                IrNode::Guard { type_, ssa_ref, snap, .. } => {
+                IrNode::Guard {
+                    type_, ssa_ref, snap, ..
+                } => {
                     self.nodes.push(IrNode::Guard {
                         type_: type_.clone(),
                         snap: self.copy_snapshot(snap, offset),
@@ -215,7 +217,7 @@ impl Recorder {
                         ssa_operands: node.ssa_operands().iter().map(|op| *op + peeled.len() + 1).collect(),
                     });
                 }
-                _ => {},
+                _ => {}
             }
         }
         self.phi(peeled.len() - 1);
@@ -344,6 +346,13 @@ mod tests {
     }
 
     fn fake_frame() -> Frame {
-        Frame { self_: 0, pc: 0, sp: 0, bp: 0, ep: 0, iseq: 0 as *const _ }
+        Frame {
+            self_: 0,
+            pc: 0,
+            sp: 0,
+            bp: 0,
+            ep: 0,
+            iseq: 0 as *const _,
+        }
     }
 }

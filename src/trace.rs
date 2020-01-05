@@ -44,7 +44,8 @@ impl Trace {
         module.finalize_definitions();
         let compiled_code = module.get_finalized_function(func_id);
 
-        self.compiled_code = Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> *const IrNode>(compiled_code) });
+        self.compiled_code =
+            Some(unsafe { transmute::<_, fn(*const VALUE, *const VALUE, VALUE) -> *const IrNode>(compiled_code) });
     }
 
     pub fn preview(&mut self, module: &mut Module<SimpleJITBackend>) -> String {

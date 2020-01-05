@@ -1,6 +1,6 @@
-use std::cell::Cell;
 use hyperdrive_ruby::rb_iseq_struct;
 use hyperdrive_ruby::VALUE;
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use vm;
 use vm::*;
@@ -63,7 +63,7 @@ impl IrNode {
     pub fn ssa_operands(&self) -> Vec<SsaRef> {
         match self {
             IrNode::Basic { ssa_operands, .. } => ssa_operands.clone(),
-            IrNode::Guard { ssa_ref, .. } |  IrNode::Branch { ssa_ref, .. } => vec![*ssa_ref],
+            IrNode::Guard { ssa_ref, .. } | IrNode::Branch { ssa_ref, .. } => vec![*ssa_ref],
             _ => vec![],
         }
     }
