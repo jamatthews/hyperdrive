@@ -12,7 +12,7 @@ impl Recorder {
             x => panic!("aref not supported for {:#?}", x),
         };
 
-        self.nodes.push(IrNode::Basic {
+        self.emit(IrNode::Basic {
             type_: self.nodes[value].type_(),
             opcode: opcode,
             operands: vec![],

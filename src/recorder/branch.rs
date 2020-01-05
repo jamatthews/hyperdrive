@@ -5,7 +5,7 @@ impl Recorder {
         let value: Value = unsafe { *thread.get_sp().offset(-1) }.into();
         let snap = self.snapshot();
         let popped = self.stack_pop();
-        self.nodes.push(IrNode::Guard {
+        self.emit(IrNode::Guard {
             type_: ir::IrType::Yarv(value.type_()),
             snap: snap,
             ssa_ref: popped,

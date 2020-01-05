@@ -85,7 +85,7 @@ impl Recorder {
             Some(ssa_ref) => ssa_ref,
             None => {
                 let value: Value = unsafe { *self.base_bp.offset(self.sp) }.into();
-                self.nodes.push(IrNode::Basic {
+                self.emit(IrNode::Basic {
                     type_: IrType::Yarv(value.type_()),
                     opcode: ir::OpCode::StackLoad(self.sp),
                     operands: vec![],
@@ -109,7 +109,7 @@ impl Recorder {
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot();
-            self.nodes.push(IrNode::Snapshot { snap: snapshot });
+            self.emit(IrNode::Snapshot { snap: snapshot });
             self.peel();
             return Ok(true);
         }
@@ -167,7 +167,7 @@ impl Recorder {
             IrNode::Snapshot { snap } => snap.stack_map.clone(),
             _ => panic!("missing base snapshot"),
         };
-        self.nodes.push(IrNode::Basic {
+        self.emit(IrNode::Basic {
             type_: IrType::None,
             opcode: ir::OpCode::Loop,
             operands: vec![],
@@ -177,7 +177,7 @@ impl Recorder {
         for (i, node) in peeled.iter().enumerate() {
             match node {
                 IrNode::Constant { .. } => {
-                    self.nodes.push(IrNode::Basic {
+                    self.emit(IrNode::Basic {
                         type_: node.type_(),
                         opcode: ir::OpCode::Pass(i),
                         operands: vec![],
@@ -187,7 +187,7 @@ impl Recorder {
                 IrNode::Guard {
                     type_, ssa_ref, snap, ..
                 } => {
-                    self.nodes.push(IrNode::Guard {
+                    self.emit(IrNode::Guard {
                         type_: type_.clone(),
                         snap: self.copy_snapshot(snap, offset),
                         ssa_ref: ssa_ref + peeled.len() + 1,
@@ -195,7 +195,7 @@ impl Recorder {
                     });
                 }
                 IrNode::Snapshot { snap } => {
-                    self.nodes.push(IrNode::Snapshot {
+                    self.emit(IrNode::Snapshot {
                         snap: self.copy_snapshot(snap, offset),
                     });
                 }
@@ -210,7 +210,7 @@ impl Recorder {
                         }
                         op => (op.clone(), node.type_()),
                     };
-                    self.nodes.push(IrNode::Basic {
+                    self.emit(IrNode::Basic {
                         type_: type_,
                         opcode: opcode,
                         operands: node.operands(),
@@ -246,7 +246,7 @@ impl Recorder {
 
         for (slot, ssa_ref) in after.iter() {
             if before.get(slot) != Some(ssa_ref) {
-                self.nodes.push(IrNode::Basic {
+                self.emit(IrNode::Basic {
                     type_: self.nodes[*ssa_ref].type_(),
                     opcode: ir::OpCode::Phi,
                     operands: vec![],

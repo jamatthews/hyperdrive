@@ -3,7 +3,7 @@ use super::*;
 impl Recorder {
     pub fn record_opt_empty_p(&mut self, _thread: Thread, instruction: Instruction) {
         let popped = self.stack_pop();
-        self.nodes.push(IrNode::Basic {
+        self.emit(IrNode::Basic {
             type_: IrType::Internal(InternalType::Bool),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],

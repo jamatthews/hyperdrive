@@ -11,7 +11,7 @@ impl Recorder {
             _ => panic!(),
         };
 
-        self.nodes.push(IrNode::Basic {
+        self.emit(IrNode::Basic {
             type_: IrType::Internal(InternalType::Value),
             opcode: opcode,
             operands: vec![],

@@ -14,7 +14,7 @@ impl Recorder {
                     ValueType::Fixnum => IrType::Internal(InternalType::I64),
                     x => IrType::Yarv(x),
                 };
-                self.nodes.push(IrNode::Basic {
+                self.emit(IrNode::Basic {
                     type_: type_,
                     opcode: ir::OpCode::StackLoad(offset_from_base_bp),
                     operands: vec![],

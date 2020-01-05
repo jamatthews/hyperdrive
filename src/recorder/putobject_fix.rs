@@ -2,7 +2,7 @@ use super::*;
 
 impl Recorder {
     pub fn record_putobject_fix(&mut self, _thread: Thread, instruction: Instruction) {
-        self.nodes.push(IrNode::Basic {
+        self.emit(IrNode::Basic {
             type_: IrType::Internal(InternalType::I64),
             opcode: ir::OpCode::Yarv(instruction.opcode()),
             operands: vec![],

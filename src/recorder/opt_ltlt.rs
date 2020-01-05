@@ -7,7 +7,7 @@ impl Recorder {
 
         match &self.nodes[receiver].type_() {
             IrType::Yarv(ValueType::Array) => {
-                self.nodes.push(IrNode::Basic {
+                self.emit(IrNode::Basic {
                     type_: IrType::Yarv(ValueType::Array),
                     opcode: ir::OpCode::ArrayAppend,
                     operands: vec![],
