@@ -24,6 +24,7 @@ pub enum IrNode {
         ssa_ref: SsaRef,
         snap: Snapshot,
         exit_count: Cell<u64>,
+        error_count: Cell<u64>,
     },
     Branch {
         type_: IrType,

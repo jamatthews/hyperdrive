@@ -10,6 +10,7 @@ impl Recorder {
             snap: snap,
             ssa_ref: popped,
             exit_count: Cell::new(0),
+            error_count: Cell::new(0),
         });
     }
 }

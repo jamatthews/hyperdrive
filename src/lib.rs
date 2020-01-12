@@ -22,6 +22,7 @@ use cranelift_module::*;
 use cranelift_simplejit::*;
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::Mutex;
 
 use hyperdrive_ruby::*;
@@ -106,7 +107,7 @@ struct Hyperdrive {
     pub mode: Mode,
     pub counters: HashMap<u64, u64>,
     pub failures: HashMap<u64, u64>,
-    pub trace_heads: HashMap<u64, Pin<Box<Trace>>>,
+    pub trace_heads: HashMap<u64, Rc<Pin<Box<Trace>>>>,
     pub module: Module<SimpleJITBackend>,
 }
 
@@ -129,8 +130,8 @@ fn trace_dispatch(thread: Thread) {
                 let exit_node: *const IrNode =
                     trace_function(thread.get_thread_ptr(), thread.get_bp(), thread.get_self());
                 let exit_node = unsafe { &*exit_node };
-                let (snap, exit_count) = match exit_node {
-                    IrNode::Guard { snap, exit_count, .. } => (snap, exit_count),
+                let (snap, exit_count, error_count) = match exit_node {
+                    IrNode::Guard { snap, exit_count, error_count, .. } => (snap, exit_count, error_count),
                     _ => panic!("exit node not a guard {}"),
                 };
 
@@ -147,14 +148,20 @@ fn trace_dispatch(thread: Thread) {
                         thread.set_pc(frame.pc - 8);
                     }
                 }
-                exit_count.set(exit_count.get() + 1);
+
+                if exit_count.get() > 5 && error_count.get() < 3 {
+                    let offset = existing_trace.nodes.iter().position(|x| x == exit_node).unwrap();
+                    hyperdrive.mode = Mode::Recording(Recorder::new(thread, Some((Rc::clone(&existing_trace), offset))));
+                } else {
+                    exit_count.set(exit_count.get() + 1);
+                }
             } else {
                 *hyperdrive.counters.entry(pc).or_insert(0) += 1;
                 let count = hyperdrive.counters.get(&pc).unwrap();
                 if *count > 1000 {
                     let failures = hyperdrive.failures.get(&pc).unwrap_or(&0);
                     if *failures < 5 {
-                        hyperdrive.mode = Mode::Recording(Recorder::new(thread));
+                        hyperdrive.mode = Mode::Recording(Recorder::new(thread, None));
                     }
                 }
             }
@@ -169,8 +176,21 @@ fn trace_record_instruction(thread: Thread) {
         Mode::Recording(recorder) => match recorder.record_instruction(thread.clone()) {
             Ok(true) => {
                 let mut trace = Pin::new(Box::new(Trace::new(recorder.nodes.clone(), thread.clone())));
-                trace.compile(&mut hyperdrive.module);
-                hyperdrive.trace_heads.insert(trace.anchor, trace);
+                match &recorder.parent {
+                    Some((trace, offset)) => {
+                        match trace.nodes.get(*offset).unwrap() {
+                            IrNode::Guard { error_count, .. } => {
+                                println!("error recording side trace");
+                                error_count.set(error_count.get() + 1);
+                            },
+                            _ => {},
+                        }
+                    },
+                    None => {
+                        trace.compile(&mut hyperdrive.module);
+                        hyperdrive.trace_heads.insert(trace.anchor, Rc::new(trace));
+                    }
+                }
                 hyperdrive.mode = Mode::Normal;
             }
             Err(err) => {

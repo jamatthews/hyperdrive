@@ -20,6 +20,9 @@ mod putself;
 mod putstring;
 mod setlocal_wc_0;
 
+use trace::Trace;
+use std::pin::Pin;
+use std::rc::Rc;
 use ir;
 use ir::*;
 use std::cell::Cell;
@@ -30,6 +33,7 @@ use vm::*;
 
 #[derive(Clone, Debug)]
 pub struct Recorder {
+    pub parent: Option<(Rc<Pin<Box<Trace>>>, usize)>,
     pub nodes: IrNodes,
     pub anchor: u64,
     stack: BTreeMap<isize, SsaRef>,
@@ -39,7 +43,7 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn new(thread: Thread) -> Self {
+    pub fn new(thread: Thread, parent: Option<(Rc<Pin<Box<Trace>>>, usize)>) -> Self {
         //the actual object of self is loaded at execution time, but we need to load it here to add a type
         let raw_value = thread.get_self();
         let value: Value = raw_value.into();
@@ -54,6 +58,7 @@ impl Recorder {
         let sp = (thread.get_sp() as u64 - thread.get_bp() as u64) as isize;
         let ep = (thread.get_ep() as u64 - thread.get_bp() as u64) as isize;
         Self {
+            parent: parent,
             nodes: nodes,
             stack: BTreeMap::new(),
             anchor: thread.get_pc() as u64,
@@ -104,6 +109,16 @@ impl Recorder {
         self.sync_vm_state(&thread);
         let instruction = Instruction::new(thread.get_pc());
         let opcode = instruction.opcode();
+
+        match &self.parent {
+            Some((parent, _)) if !self.nodes.is_empty() && parent.anchor == thread.get_pc() as u64 => {
+                let snapshot = self.snapshot();
+                self.emit(IrNode::Snapshot { snap: snapshot });
+                println!("recorded a loop back to parent");
+                return Ok(true);
+            },
+            _ => {},
+        }
 
         if !self.nodes.is_empty() && thread.get_pc() as u64 == self.anchor {
             let snapshot = self.snapshot();
@@ -190,6 +205,7 @@ impl Recorder {
                         snap: self.copy_snapshot(snap, offset),
                         ssa_ref: ssa_ref + peeled.len() + 1,
                         exit_count: Cell::new(0),
+                        error_count: Cell::new(0),
                     });
                 }
                 IrNode::Snapshot { snap } => {
